@@ -1,4 +1,4 @@
-# Kosh: private family financial planner (India)
+# Kosh: Personal Wealth Calculator
 
 A self-service planner for Indian families. Enter household, monthly money, savings and goals, and see what the goals cost, what the monthly surplus covers, and how retirement and the emergency fund look.
 

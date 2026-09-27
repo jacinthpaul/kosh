@@ -112,7 +112,7 @@ export default function App() {
   const fileInput = <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" tabIndex={-1} aria-hidden onChange={onFile} />;
   const header = (
     <header className="header">
-      <button className="brand" onClick={() => { setScreen('welcome'); setSheet(null); }} aria-label="Kosh home"><b>Kosh</b><span>Private family financial planner</span></button>
+      <button className="brand" onClick={() => { setScreen('welcome'); setSheet(null); }} aria-label="Kosh home"><b>Kosh</b><span>Personal Wealth Calculator</span></button>
       <div className="header-right">
         {screen === 'app' && plan.sample && <div className="sample-chip"><span>Sample</span><button onClick={() => start(blank())}>Use my numbers</button></div>}
         <button className="pill" onClick={() => setSheet('privacy')}>
@@ -146,8 +146,8 @@ export default function App() {
         {header}
         <main className="welcome">
           <div className="stack-lg">
-            <div className="eyebrow">Private family financial planner for India</div>
-            <h1 className="h1">Your family’s finances, planned privately and explained clearly.</h1>
+            <div className="eyebrow">Personal Wealth Calculator</div>
+            <h1 className="h1">Your family’s wealth management, planned and visualised clearly.</h1>
             <p className="lead">See where you stand, what your goals cost and what the monthly surplus can cover, without creating an account or connecting your bank.</p>
             <div className="stack" style={{ gap: 10 }}>
               <button className="btn btn-primary btn-lg" onClick={() => start(sample(thisYear()))}>Try with a sample family</button>
