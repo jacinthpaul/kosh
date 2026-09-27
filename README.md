@@ -1,5 +1,7 @@
 # Kosh: Personal Wealth Calculator
 
+**Try it live:** https://jacinthpaul.github.io/kosh/
+
 A self-service planner for Indian families. Enter household, monthly money, savings and goals, and see what the goals cost, what the monthly surplus covers, and how retirement and the emergency fund look.
 
 **Privacy:** there is no backend. Everything runs in the browser. A Content Security Policy (`connect-src 'none'`) blocks all network requests after the page loads. There is no analytics or tracking, and fonts are self-hosted. Plans are kept only if the user turns on "Save on this device" (localStorage) or downloads a backup file (optionally AES-GCM encrypted).
