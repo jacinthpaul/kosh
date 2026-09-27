@@ -130,7 +130,8 @@ function Summary({ r }: { r: Report }) {
         <View style={{ flexDirection: 'row', marginBottom: 3 }}><Swatch color={C.today} /><Text style={[s.small, { flex: 1 }]}><Text style={{ fontWeight: 700, color: C.today }}>Blue</Text> amounts are in <Text style={{ fontWeight: 700 }}>today’s money</Text>: what things cost or are worth now.</Text></View>
         <View style={{ flexDirection: 'row', marginBottom: 3 }}><Swatch color={C.future} /><Text style={[s.small, { flex: 1 }]}><Text style={{ fontWeight: 700, color: C.future }}>Purple</Text> amounts are <Text style={{ fontWeight: 700 }}>future money</Text>: what something will cost in the year it happens, after prices rise, or what savings may grow to by then.</Text></View>
         <Text style={s.small}>• <Text style={{ fontWeight: 700 }}>L</Text> means lakh (₹1,00,000) and <Text style={{ fontWeight: 700 }}>Cr</Text> means crore (₹1,00,00,000).</Text>
-        <Text style={s.small}>• All figures are <Text style={{ fontWeight: 700 }}>estimates before tax</Text>, based on the numbers you entered and the assumptions on the last page. They are calculations, not financial advice.</Text>
+        <Text style={s.small}>• All figures are <Text style={{ fontWeight: 700 }}>estimates before tax</Text>, based on the numbers you entered and the assumptions in section 7.</Text>
+        <Text style={[s.small, { color: C.warnFg, marginTop: 3 }]}><Text style={{ fontWeight: 700 }}>Not financial advice.</Text> Kosh is a calculator that helps you visualise your finances so you can plan better. Figures may contain errors, and we are not responsible for decisions made using this report. See the disclaimer on the last page.</Text>
       </Explain>
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
@@ -444,6 +445,14 @@ function Missing({ r }: { r: Report }) {
   );
 }
 
+/** Full disclaimer, shown on the last page. */
+export const DISCLAIMER = [
+  'Kosh is a calculator, not financial advice. It helps you see your finances in one place and visualise your goals, so you can plan better.',
+  'It does not recommend any investment, insurance, loan or tax product, and it is not a substitute for advice from a SEBI-registered investment adviser or another qualified professional.',
+  'All figures are estimates based only on the numbers you entered and the assumptions shown. Actual returns, inflation, taxes and costs will differ, and markets can fall as well as rise.',
+  'While care has been taken, the calculations may contain errors or simplifications. Kosh and its makers accept no responsibility or liability for any loss, or for any decision made, based on this report. Please check important decisions with a qualified professional.',
+];
+
 const GLOSSARY: [string, string][] = [
   ['Take-home pay', 'Salary received in your bank account, after tax, PF and other deductions.'],
   ['Inflation', 'The rate at which prices rise each year. At 6%, something costing ₹1,00,000 today costs about ₹1,79,000 in 10 years.'],
@@ -489,15 +498,33 @@ function Notes({ r }: { r: Report }) {
             <Text style={s.h3}>Simplifications</Text>
             {['Incomes and monthly investments stay flat, unless an option explores raising them.', 'The emergency set-aside continues even after its target is reached.', 'Retirement uses the first person’s age only.', 'Market returns vary from year to year; these figures use steady average rates.'].map(t => <Text key={t} style={s.small}>• {t}</Text>)}
           </View>
-          <View style={s.muted}>
-            <Text style={{ fontWeight: 700, marginBottom: 2 }}>About this report</Text>
-            <Text style={s.small}>Kosh is a calculator. It does not provide investment, tax or financial advice, and does not recommend any product. Created on your own device on {r.generated}; none of your numbers were sent anywhere. Update it whenever your income, family, loans or goals change.</Text>
-          </View>
         </View>
       </View>
       <View style={[s.card, { marginBottom: 0, paddingBottom: 8 }]}>
         <Text style={s.h3}>Words explained</Text>
         <View style={s.row}>{col(GLOSSARY.slice(0, half))}{col(GLOSSARY.slice(half))}</View>
+      </View>
+    </Page>
+  );
+}
+
+function Disclaimer({ r }: { r: Report }) {
+  return (
+    <Page size="A4" style={s.page}>
+      <Chrome r={r} section="Disclaimer" />
+      <Text style={s.eyebrow}>Please read</Text>
+      <Text style={s.h2}>Disclaimer</Text>
+      <View style={{ borderWidth: 1, borderColor: '#E5C27A', backgroundColor: C.warnBg, borderRadius: 10, padding: 16, marginTop: 6, marginBottom: 12 }}>
+        <Text style={{ fontFamily: SERIF as unknown as string, fontSize: 14, color: C.warnFg, marginBottom: 8 }}>This report is not financial advice.</Text>
+        {DISCLAIMER.map((t, i) => <Text key={i} style={{ fontSize: 10, color: C.warnFg, lineHeight: 1.55, marginBottom: 6 }}>{t}</Text>)}
+      </View>
+      <View style={s.card}>
+        <Text style={s.h3}>Your privacy</Text>
+        <Text style={s.p}>This report was created on your own device on {r.generated}. None of your numbers were sent to Kosh or anyone else. If you share this file, you are sharing your financial details{r.names ? ', including names' : ''}.</Text>
+      </View>
+      <View style={s.card}>
+        <Text style={s.h3}>Keep it current</Text>
+        <Text style={s.p}>These results reflect what was entered on the date above. Create a new report whenever your income, family, loans or goals change.</Text>
       </View>
     </Page>
   );
@@ -513,6 +540,7 @@ export function ReportPdf({ r }: { r: Report }) {
       <HaveOwe r={r} />
       <Missing r={r} />
       <Notes r={r} />
+      <Disclaimer r={r} />
     </Document>
   );
 }

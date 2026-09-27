@@ -72,7 +72,7 @@ Try it with the built-in **sample family** to see a complete plan in one click, 
 - **You decide what's kept.** Plans are saved only if you turn on *Save on this device*, or download a backup file (AES-GCM 256, PBKDF2-SHA256 with 200k iterations when you set a password).
 
 > [!NOTE]
-> **Not advice.** Kosh is a calculator. It shows figures, not recommendations, and does not provide investment, tax or financial advice.
+> **Not advice.** Kosh is a calculator that helps you visualise your finances so you can plan better. It shows figures, not recommendations, and does not provide investment, tax or financial advice. Figures are estimates and may contain errors; Kosh and its makers accept no responsibility or liability for any loss or decision made using it.
 
 > [!IMPORTANT]
 > **Open assumption: tax.** All figures are **before tax**. Tax on interest, capital gains and withdrawals is not modelled yet. This is shown clearly in the app and is still to be decided.

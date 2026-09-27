@@ -153,7 +153,7 @@ export default function App() {
       <button className="btn btn-primary" disabled={busy || !pendingPw} onClick={unlock}>{busy ? 'Unlocking…' : 'Unlock and open'}</button>
     </Sheet>
   );
-  const disclaimer = <p className="disclaimer">Kosh is a calculator. It does not provide investment, tax or financial advice. All figures are estimates before tax.</p>;
+  const disclaimer = <p className="disclaimer">Kosh is a calculator to help you visualise your finances and plan better. It is not financial advice. Figures are estimates before tax and may contain errors; we are not responsible for decisions made using them.</p>;
 
   if (screen === 'welcome') {
     return (
@@ -255,6 +255,7 @@ export default function App() {
                   <section className="card">
                     <h3>PDF report</h3>
                     <p className="desc">A 7-section A4 report of your plan, with every section and number explained in plain words. Created on this device and never uploaded.</p>
+                    <p className="hint">The report is a calculation to help you plan, not financial advice. It includes a full disclaimer.</p>
                     <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
                       <div><b style={{ fontSize: 14 }}>Include names</b><p className="hint">Turn off to replace names with “You”, “Partner” and “Child” before sharing.</p></div>
                       <Toggle on={pdfNames} onChange={setPdfNames} label="Include names in the PDF" />
