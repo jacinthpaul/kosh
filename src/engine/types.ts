@@ -14,8 +14,8 @@ export type Num = number | '';
 
 export interface Person { name: string; age: Num }
 export interface Kid { id: string; name: string; age: Num }
-export interface Row { id: string; label: string; amt: number }
-export interface Loan { id: string; label: string; emi: number; out: number; rate: Num }
+export interface Row { id: string; label: string; amt: number; /** Regular spends only: a want rather than a need. */ want?: boolean }
+export interface Loan { id: string; label: string; emi: number; out: number; rate: Num; /** Year of the last EMI. Optional. */ endYear?: Num }
 export interface Asset { id: string; type: AssetType; label: string; value: number; access: Access; earmark: Earmark }
 /** An amount invested every month (SIP, EPF, NPS, stocks, crypto…). */
 export interface Investment {
@@ -23,12 +23,26 @@ export interface Investment {
   /** Already deducted before take-home pay (e.g. EPF), so not subtracted from the balance again. */
   payroll: boolean;
 }
-export interface Policy { id: string; type: PolicyType; label: string; cover: number; premium: number; freq: Freq }
+export interface Policy {
+  id: string; type: PolicyType; label: string; cover: number; premium: number; freq: Freq;
+  /** Life policies: whose life is covered. */
+  person?: 'you' | 'partner' | '';
+  /** Health policies: provided by an employer. */
+  employer?: boolean;
+  /** Savings plans: amount paid out at maturity, when, and what it's for. */
+  maturity?: number; maturityYear?: Num; earmark?: Earmark;
+}
 /** A one-off amount in a given year. Income can be earmarked; spends are funded like goals. */
 export interface OneTime { id: string; kind: 'income' | 'spend'; label: string; amt: number; year: Num; earmark: Earmark }
 export interface Goal { id: string; name: string; type: GoalType; cost: number; year: Num; inf: Num; priority: Priority }
 
-export interface Assumptions { ret: Num; retPost: Num; inf: Num; eduInf: Num; healthInf: Num }
+export interface Assumptions {
+  /** Return on new monthly amounts for goals 7+ years away. */
+  ret: Num;
+  /** Return on new monthly amounts for goals up to 3 years away (safer, debt-like). Blends in between. */
+  safe: Num;
+  retPost: Num; inf: Num; eduInf: Num; healthInf: Num;
+}
 
 export interface Plan {
   schemaVersion: 2;
@@ -38,6 +52,8 @@ export interface Plan {
   goals: Goal[];
   /** Monthly */
   income: Row[];
+  /** Expected yearly increase in income (%). Optional; used by options. */
+  incomeGrowth: Num;
   essentials: Row[];
   loans: Loan[];
   investments: Investment[];
@@ -58,6 +74,14 @@ export interface Item {
   year: number; n: number; today: number | null;
   fv: number; grown: number; gap: number; sip: number; factor: number; paused: boolean;
   alloc: number; projected: number; pct: number; short: number; funded: boolean;
+  /** Yearly return assumed for new monthly amounts toward this item (depends on how far away it is). */
+  rate: number;
+  /** Value arriving from other items' surplus savings, at this item's date. */
+  carried: number; carriedFrom: string[];
+  /** Surplus (today's linked value at this item's date) passed on to later items. */
+  moved: number;
+  /** Monthly amount from EMIs that end before this item's date, and its value by then. */
+  allocLater: number; laterValue: number;
 }
 
 export interface Stress { dRet?: number; dInf?: number; incomeCut?: number; retShift?: number }
@@ -72,6 +96,8 @@ export interface Levers {
   stepUp?: number;
   /** Fraction cut from regular monthly spends. */
   spendCut?: number;
+  /** Fraction cut from spends marked as wants. */
+  wantCut?: number;
   /** Treat unassigned savings and investments as earmarked to this item. */
   assignUnassigned?: string;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ASSET_TYPES, CALC_VERSION, DEFAULT_RATES, TYPE_LABEL } from './engine/data';
+import { LONG_YEARS, SHORT_YEARS } from './engine/calc';
+import { ASSET_CLASS, ASSET_TYPES, CALC_VERSION, CLASS_COLOR, DEFAULT_RATES, TYPE_LABEL } from './engine/data';
 import { N, cmp, inr, pct } from './engine/format';
 import { findings, options } from './engine/insights';
 import type { Assumptions } from './engine/types';
@@ -53,6 +54,7 @@ function NeedBars({ c }: StepProps) {
         <span style={{ ['--c' as string]: SEGC['Nice to have'] }}>Nice to have</span>
         {c.gapM > 0 && <span style={{ ['--c' as string]: 'var(--hatch)' }}>Gap</span>}
       </div>
+      {c.items.some(i => i.allocLater > 1) && <p className="hint">Part of what goals need is covered later, by EMIs that end ({c.freed.map(f => f.label + ' in ' + f.year).join(', ')}).</p>}
     </>
   );
 }
@@ -80,7 +82,7 @@ function Summary(props: StepProps) {
               <p className="headline">To meet every goal, you need <span className="t">{inr(c.gapM)}</span> more a month.</p>
               <p className="desc">That’s about <b className="t">{cmp(c.lumpToday)}</b> if invested as one amount today. Without it, goals fall <b className="f">{cmp(futureShort)}</b> short in future money.</p>
             </>
-          ) : <p className="headline">Every goal is funded, with <span className="t">{inr(c.available - c.required)}</span> a month to spare.</p>}
+          ) : <p className="headline">Every goal is funded{c.unallocated >= 1 ? <>, with <span className="t">{inr(c.unallocated)}</span> a month to spare</> : ''}.</p>}
         {c.emContrib > 0 && <p className="hint">Available = monthly balance of {inr(c.balance)} minus {inr(c.emContrib)} set aside for the emergency fund.</p>}
         {c.required > 0 && <NeedBars {...props} />}
       </section>
@@ -112,7 +114,31 @@ function Summary(props: StepProps) {
           </div>
         </section>
       )}
+
+      <MixCard {...props} />
     </>
+  );
+}
+
+function MixCard({ c }: StepProps) {
+  if (c.assetsTotal <= 0) return null;
+  const rows = [...c.mix.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  return (
+    <section className="card">
+      <h3>Your current mix</h3>
+      <p className="hint">What you have today, by asset class. Mutual funds and NPS are counted as equity.</p>
+      <div className="mixbar" role="img" aria-label={rows.map(([k, v]) => k + ' ' + Math.round((v / c.assetsTotal) * 100) + '%').join(', ')}>
+        {rows.map(([k, v]) => <div key={k} title={k} style={{ width: pct(v, c.assetsTotal), background: CLASS_COLOR[k] }} />)}
+      </div>
+      <div>
+        {rows.map(([k, v]) => (
+          <div className="kv" key={k} style={{ padding: '4px 0' }}>
+            <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: CLASS_COLOR[k], marginRight: 8 }} />{k}{k === 'Speculative' ? ' (crypto)' : ''}</span>
+            <span><span className="t">{cmp(v)}</span> · {Math.round((v / c.assetsTotal) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -134,20 +160,23 @@ function Goals(props: StepProps) {
               <div><PriorityTag p={it.priority} />{it.kind === 'oneTime' && <span className="hint"> · one-time spend</span>}</div>
               {it.today != null && <div className="kv"><span>{it.kind === 'ret' ? 'Yearly need today' : 'Cost today'}</span><span className="t">{cmp(it.today)}</span></div>}
               <div className="kv"><span>{it.kind === 'ret' ? 'Total needed at retirement' : 'Cost in ' + it.year}</span><span className="f">{cmp(it.fv)}</span></div>
-              <div className="kv"><span>Already working toward it</span><span className="f">{cmp(it.grown)}</span></div>
+              <div className="kv"><span>Already working toward it</span><span className="f">{cmp(it.grown - it.moved)}</span></div>
+              {it.carried > 1 && <div className="kv"><span>Carried from {[...new Set(it.carriedFrom)].join(', ')}</span><span className="f">{cmp(it.carried)}</span></div>}
               <div className="kv"><span>Still needs each month</span><span className="t">{inr(it.sip)}</span></div>
               <div className="kv"><span>Covered by your balance</span><span className="t">{inr(it.alloc)}</span></div>
+              {it.allocLater > 1 && <div className="kv"><span>From EMIs that end, later</span><span className="t">{inr(it.allocLater)}/mo</span></div>}
+              <div className="kv"><span>Return assumed on new amounts</span><span>{(it.rate * 100).toFixed(1)}%</span></div>
               <div className="bar" aria-hidden><div style={{ width: (it.pct * 100).toFixed(1) + '%', background: it.funded ? 'var(--green)' : 'var(--amber)' }} /></div>
               <div className="kv">
                 <span>Projected <span className="f">{cmp(it.projected)}</span> of <span className="f">{cmp(it.fv)}</span></span>
                 <span style={{ color: it.paused ? 'var(--ph)' : it.funded ? 'var(--green)' : 'var(--status)', fontWeight: 600 }}>
-                  {it.paused ? 'Paused' : it.sip < 1 ? 'Covered already' : it.funded ? 'Fully funded' : 'Short ' + inr(it.sip - it.alloc) + '/mo'}
+                  {it.paused ? 'Paused' : it.sip < 1 ? 'Covered already' : it.funded ? 'Fully funded' : 'Short ' + inr(it.factor ? it.short / it.factor : 0) + '/mo'}
                 </span>
               </div>
             </div>
           ))}
         </div>
-        <p className="hint">“Already working toward it” is what linked savings, monthly investments and one-time income are projected to reach by the goal date.</p>
+        <p className="hint">“Already working toward it” is what linked savings, monthly investments and one-time income are projected to reach by the goal date. Savings beyond what a goal needs carry forward to later goals.</p>
       </section>
     </>
   );
@@ -248,7 +277,8 @@ function Emergency({ plan, update, c }: StepProps) {
 
 function AssumptionsTab({ plan, update }: StepProps) {
   const rows: [keyof Assumptions, string, string][] = [
-    ['ret', 'Return on new monthly amounts', 'Applied to what goals still need each month'],
+    ['ret', 'Return for goals ' + LONG_YEARS + '+ years away', 'On new monthly amounts toward long-term goals'],
+    ['safe', 'Return for goals up to ' + SHORT_YEARS + ' years away', 'Safer, debt-like. Goals in between use a blend'],
     ['retPost', 'Return after retirement', 'Applied to savings during retirement'],
     ['inf', 'General inflation', 'Household spending, most goals, one-time spends'],
     ['eduInf', 'Education inflation', 'Default for new education goals'],
@@ -276,7 +306,7 @@ function AssumptionsTab({ plan, update }: StepProps) {
         <p className="hint">Yearly growth by type, used for what you have and your monthly investments. Before tax.</p>
         <div className="fields">
           {ASSET_TYPES.map(t => (
-            <Field key={t} label={TYPE_LABEL[t] ?? t} hint={'Default ' + DEFAULT_RATES[t] + '%'}>
+            <Field key={t} label={(TYPE_LABEL[t] ?? t) + (ASSET_CLASS[t] === 'Speculative' ? ' · speculative' : '')} hint={'Default ' + DEFAULT_RATES[t] + '%'}>
               <NumInput decimals suffix="% a year" value={plan.rates[t]} onChange={v => update(p => { p.rates[t] = v; })} />
             </Field>
           ))}
@@ -287,6 +317,7 @@ function AssumptionsTab({ plan, update }: StepProps) {
         <ul className="hint" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
           <li>Tax, fees and exit loads are not included.</li>
           <li>Monthly investments and incomes stay flat; yearly increases are not modelled unless explored as an option.</li>
+          <li>Near-term goals assume a safer return because market-linked values can fall in the short term.</li>
           <li>The emergency fund set-aside is treated as ongoing, even after the target is reached.</li>
           <li>Retirement uses the primary earner’s age only.</li>
           <li>Calculation version {CALC_VERSION}.</li>

@@ -13,8 +13,8 @@
 
 <p align="center">
   <a href="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml"><img src="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
-  <img src="https://img.shields.io/badge/version-v0.2-2E5C3E" alt="Version v0.2">
-  <img src="https://img.shields.io/badge/tests-33%20passing-2E5C3E" alt="Tests: 33 passing">
+  <img src="https://img.shields.io/badge/version-v0.3-2E5C3E" alt="Version v0.3">
+  <img src="https://img.shields.io/badge/tests-42%20passing-2E5C3E" alt="Tests: 42 passing">
   <img src="https://img.shields.io/badge/tracking-none-2E5C3E" alt="Tracking: none">
   <img src="https://img.shields.io/badge/data-stays%20in%20your%20browser-2E5C3E" alt="Data stays in your browser">
   <img src="https://img.shields.io/badge/mobile-first-C98A1B" alt="Mobile first">
@@ -48,8 +48,16 @@
 | **2 · Monthly money** | Income, regular spends, EMIs, monthly investments (SIPs, stocks, crypto, EPF, NPS, PPF…) linked to goals, and health and life insurance. Ends with your **monthly balance** |
 | **3 · Yearly and one-time** | Bonuses and yearly spends like school fees, plus one-off income (a maturity, a sale) or spends in a given year |
 | **4 · What I have and owe** | Savings, investments, property and loans at today’s value, each linked to what it’s for |
-| **5 · Your plan** | **How much more is needed** each month, **what’s missing** (shortfalls, emergency fund, insurance, unlinked money), and **options to explore** with their effect on the gap |
+| **5 · Your plan** | **How much more is needed** each month, **what’s missing** (shortfalls, emergency fund, insurance, unlinked money), **options to explore** with their effect on the gap, and **your current mix** of equity, debt, gold and property |
 | **6 · Save and revisit** | Download an editable backup file (optionally password-encrypted), or save on this device |
+
+**Grounded in practice:** the model follows the NSE Academy (NCFM) Wealth Management module wherever it applies:
+- Goals up to 3 years away assume a safer return, and goals 7+ years away the full return.
+- EMIs count toward goals once the loan ends.
+- Surplus savings on one goal carry forward to the next.
+- The emergency fund covers needs, not wants.
+
+Its worked examples are reproduced exactly in the tests.
 
 **Colour code:** 🔵 blue is today’s money, 🟣 plum is future money after price rises or growth, used the same way on every screen.
 

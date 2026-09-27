@@ -16,7 +16,7 @@ const money = (v: unknown) => { const n = Number(v); return Number.isFinite(n) &
 const num = (v: unknown): Num => { if (v === '' || v == null) return ''; const n = Number(v); return Number.isFinite(n) ? n : ''; };
 const oneOf = <T extends string>(v: unknown, list: readonly T[], d: T): T => (list.includes(v as T) ? (v as T) : d);
 const id = (v: unknown, prefix: string) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : newId(prefix));
-const rows = (v: unknown, prefix: string): Row[] => arr(v).slice(0, 100).map(x => { const o = obj(x); return { id: id(o.id, prefix), label: str(o.label), amt: money(o.amt) }; });
+const rows = (v: unknown, prefix: string): Row[] => arr(v).slice(0, 100).map(x => { const o = obj(x); return { id: id(o.id, prefix), label: str(o.label), amt: money(o.amt), ...(o.want === true ? { want: true } : {}) }; });
 
 export function toPlan(raw: unknown): Plan | null {
   const r = obj(raw);
@@ -73,12 +73,17 @@ export function toPlan(raw: unknown): Plan | null {
     },
     goals,
     income,
+    incomeGrowth: num(r.incomeGrowth),
     essentials: 'essentials' in r ? rows(r.essentials, 'e') : d.essentials,
-    loans: arr(r.loans).slice(0, 50).map(x => { const l = obj(x); return { id: id(l.id, 'l'), label: str(l.label), emi: money(l.emi), out: money(l.out), rate: num(l.rate) }; }),
+    loans: arr(r.loans).slice(0, 50).map(x => { const l = obj(x); return { id: id(l.id, 'l'), label: str(l.label), emi: money(l.emi), out: money(l.out), rate: num(l.rate), endYear: num(l.endYear) }; }),
     investments,
     insurance: arr(r.insurance).slice(0, 50).map(x => {
       const p = obj(x);
-      return { id: id(p.id, 'p'), type: oneOf<PolicyType>(p.type, POLICY_TYPES, 'Health'), label: str(p.label), cover: money(p.cover), premium: money(p.premium), freq: oneOf<Freq>(p.freq, FREQS, 'Yearly') };
+      return {
+        id: id(p.id, 'p'), type: oneOf<PolicyType>(p.type, POLICY_TYPES, 'Health'), label: str(p.label), cover: money(p.cover), premium: money(p.premium), freq: oneOf<Freq>(p.freq, FREQS, 'Yearly'),
+        person: p.person === 'partner' ? 'partner' as const : p.person === 'you' ? 'you' as const : '' as const, employer: p.employer === true,
+        maturity: money(p.maturity), maturityYear: num(p.maturityYear), earmark: validEarmark(p.earmark, false),
+      };
     }),
     annualIncome: rows(r.annualIncome, 'y'),
     annual: 'annual' in r ? rows(r.annual, 'n') : d.annual,
@@ -96,7 +101,7 @@ export function toPlan(raw: unknown): Plan | null {
     }),
     emergency: { months: [3, 6, 9, 12].includes(Number(em.months)) ? Number(em.months) : 6, monthly: money(em.monthly) },
     a: {
-      ret: 'ret' in a ? num(a.ret) : d.a.ret, retPost: 'retPost' in a ? num(a.retPost) : d.a.retPost,
+      ret: 'ret' in a ? num(a.ret) : d.a.ret, safe: 'safe' in a ? num(a.safe) : d.a.safe, retPost: 'retPost' in a ? num(a.retPost) : d.a.retPost,
       inf: 'inf' in a ? num(a.inf) : d.a.inf, eduInf: 'eduInf' in a ? num(a.eduInf) : d.a.eduInf,
       healthInf: 'healthInf' in a ? num(a.healthInf) : d.a.healthInf,
     },

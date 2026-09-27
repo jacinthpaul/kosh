@@ -1,30 +1,33 @@
 import type { ReactNode } from 'react';
-import { premiumMonthly, type CalcResult } from './engine/calc';
-import { ACCESS, ASSET_TYPES, FREQS, GOAL_TYPES, INVEST_TYPES, POLICY_TYPES, PRIS, TYPE_LABEL, defaultInflation, newId } from './engine/data';
+import { SHORT_YEARS, premiumMonthly, type CalcResult } from './engine/calc';
+import { ACCESS, ASSET_TYPES, FREQS, GOAL_TYPES, INVEST_TYPES, MARKET, POLICY_TYPES, PRIS, TYPE_LABEL, defaultInflation, newId } from './engine/data';
 import { N, cmp, inr } from './engine/format';
 import type { Access, Asset, AssetType, Freq, GoalType, Item, Plan, PolicyType, Priority, Row } from './engine/types';
-import { CodeKey, Field, MoneyInput, NumInput, PriorityTag, Segmented, Select, TextInput } from './ui';
+import { CodeKey, Field, ItemCard, MoneyInput, NeedWant, NumInput, PriorityTag, Segmented, Select, TextInput, useOpenSet } from './ui';
 
 export interface StepProps { plan: Plan; update: (fn: (p: Plan) => void) => void; c: CalcResult }
 
 const typeOpts = (list: AssetType[]) => list.map(v => ({ v, l: TYPE_LABEL[v] ?? v }));
 const goalOpts = (plan: Plan) => [{ v: 'ret', l: 'Retirement' }].concat(plan.goals.map(g => ({ v: g.id, l: g.name || 'Untitled goal' })));
+const linkedName = (plan: Plan, e: string) => e === 'ret' ? 'Retirement' : e === 'emergency' ? 'Emergency fund' : e === 'excluded' ? 'Not for goals'
+  : e === 'unassigned' || !e ? 'Not linked' : plan.goals.find(g => g.id === e)?.name || 'Untitled goal';
 
 function Remove({ onClick }: { onClick: () => void }) {
   return <button className="btn-remove" onClick={onClick}>Remove</button>;
 }
 
 /** Editable list of label + amount rows. */
-function RowList({ rows, set, addLabel, amtLabel, placeholder, note }: {
-  rows: Row[]; set: (fn: (rows: Row[]) => Row[]) => void; addLabel: string; amtLabel: string; placeholder: string; note?: (r: Row) => ReactNode;
+function RowList({ rows, set, addLabel, amtLabel, placeholder, note, needWant }: {
+  rows: Row[]; set: (fn: (rows: Row[]) => Row[]) => void; addLabel: string; amtLabel: string; placeholder: string; note?: (r: Row) => ReactNode; needWant?: boolean;
 }) {
   return (
     <>
       <div className="list">
         {rows.map(r => (
           <div className="lrow" key={r.id}>
-            <div className="lrow-fields">
+            <div className={'lrow-fields' + (needWant ? ' nwrow' : '')}>
               <TextInput ariaLabel="Description" value={r.label} placeholder={placeholder} onChange={v => set(rs => rs.map(x => (x.id === r.id ? { ...x, label: v } : x)))} />
+              {needWant && <NeedWant want={!!r.want} onChange={w => set(rs => rs.map(x => (x.id === r.id ? { ...x, want: w || undefined } : x)))} />}
               <span>
                 <MoneyInput ariaLabel={amtLabel + ' for ' + (r.label || 'this item')} value={r.amt} showWords={false} onChange={v => set(rs => rs.map(x => (x.id === r.id ? { ...x, amt: v } : x)))} />
                 {note?.(r)}
@@ -39,8 +42,6 @@ function RowList({ rows, set, addLabel, amtLabel, placeholder, note }: {
   );
 }
 
-// ================= Step 1: You and your goals =================
-
 function FutureStrip({ today, todayLabel, future, futureLabel, extra }: { today: number; todayLabel: string; future: number; futureLabel: string; extra?: { label: string; v: number } }) {
   return (
     <div className={'result' + (extra ? '' : ' two')}>
@@ -51,9 +52,12 @@ function FutureStrip({ today, todayLabel, future, futureLabel, extra }: { today:
   );
 }
 
+// ================= Step 1: You and your goals =================
+
 export function YouAndGoals({ plan, update, c }: StepProps) {
   const h = plan.household, R = plan.retirement;
   const itemById = Object.fromEntries(c.items.map(i => [i.id, i]));
+  const open = useOpenSet();
   const Y = c.year;
   const presets: [string, GoalType, number, number, Priority][] = [
     ['Child’s education', 'Education', 2000000, Y + 12, 'Essential'], ['Home down payment', 'Home', 2500000, Y + 6, 'Important'],
@@ -65,7 +69,6 @@ export function YouAndGoals({ plan, update, c }: StepProps) {
       <section className="card">
         <h3>About you</h3>
         <div className="fields">
-          <Field label="Family name" hint="Optional"><TextInput value={h.family} placeholder="e.g. Rao" onChange={v => update(p => { p.household.family = v; })} /></Field>
           <Field label="Your first name" hint="Optional"><TextInput value={h.you.name} placeholder="e.g. Arjun" onChange={v => update(p => { p.household.you.name = v; })} /></Field>
           <Field label="Your age"><NumInput value={h.you.age} placeholder="e.g. 36" onChange={v => update(p => { p.household.you.age = v; })} /></Field>
         </div>
@@ -102,47 +105,59 @@ export function YouAndGoals({ plan, update, c }: StepProps) {
         {c.alreadyRetired && <div className="warn">Your age is at or above the retirement age, so retirement figures aren’t meaningful yet. Support for people already retired is coming later.</div>}
         <div className="fields">
           <Field label="Age you’d like to retire"><NumInput value={R.age} onChange={v => update(p => { p.retirement.age = v; })} /></Field>
-          <Field label="Plan until age" hint="How long the money should last"><NumInput value={R.lifeExp} onChange={v => update(p => { p.retirement.lifeExp = v; })} /></Field>
           <Field label="Monthly spending in retirement" hint="In today’s prices"><MoneyInput value={R.expense} onChange={v => update(p => { p.retirement.expense = v; })} /></Field>
-          <Field label="Pension or rent in retirement" hint="Monthly, today’s prices"><MoneyInput value={R.pension} onChange={v => update(p => { p.retirement.pension = v; })} /></Field>
         </div>
         <FutureStrip
           today={Math.max(0, R.expense - R.pension)} todayLabel="Monthly need today"
           future={c.E0 / 12} futureLabel={'Monthly need at ' + c.retAge}
           extra={{ label: 'Total needed at ' + c.retAge, v: c.corpus }} />
-        <p className="hint">Retirement uses your age. Monthly contributions like EPF and NPS go in the next step.</p>
+        <details className="more">
+          <summary>More: plan-until age, pension</summary>
+          <div className="fields">
+            <Field label="Plan until age" hint="How long the money should last"><NumInput value={R.lifeExp} onChange={v => update(p => { p.retirement.lifeExp = v; })} /></Field>
+            <Field label="Pension or rent in retirement" hint="Monthly, today’s prices"><MoneyInput value={R.pension} onChange={v => update(p => { p.retirement.pension = v; })} /></Field>
+          </div>
+        </details>
       </section>
 
-      {plan.goals.map((g, i) => {
-        const it = itemById[g.id];
-        return (
-          <section className="card" key={g.id}>
-            <div className="item-head">
-              <TextInput ariaLabel="Goal name" value={g.name} placeholder="Goal name" onChange={v => update(p => { p.goals[i].name = v; })} />
-              <Remove onClick={() => update(p => {
-                p.goals = p.goals.filter(x => x.id !== g.id);
-                for (const list of [p.assets, p.investments, p.oneTime]) list.forEach(a => { if (a.earmark === g.id) a.earmark = 'unassigned'; });
-              })} />
-            </div>
-            <div className="fields">
-              <Field label="Type"><Select<GoalType> value={g.type} options={GOAL_TYPES} onChange={v => update(p => { p.goals[i].type = v; p.goals[i].inf = defaultInflation(v, p.a); })} /></Field>
-              <Field label="Cost in today’s prices"><MoneyInput value={g.cost} onChange={v => update(p => { p.goals[i].cost = v; })} /></Field>
-              <Field label="Target year"><NumInput value={g.year} onChange={v => update(p => { p.goals[i].year = v; })} /></Field>
-              <Field label="Price rise"><NumInput decimals suffix="% a year" value={g.inf} onChange={v => update(p => { p.goals[i].inf = v; })} /></Field>
-            </div>
-            <Field label="Priority" hint="Sets the order goals are funded in">
-              <Segmented label="Priority" value={g.priority} options={PRIS.map(v => ({ v, l: v }))} onChange={v => update(p => { p.goals[i].priority = v; })} />
-            </Field>
-            {it && <FutureStrip today={N(g.cost)} todayLabel="Cost today" future={it.fv} futureLabel={'Cost in ' + it.year} />}
-          </section>
-        );
-      })}
-
-      <section className="card card-muted">
-        <h3>Add a goal</h3>
+      <section className="card">
+        <h3>Other goals</h3>
+        {plan.goals.length === 0 && <p className="hint">Tap a goal below to add it, then adjust the cost and year.</p>}
+        <div className="list">
+          {plan.goals.map((g, i) => {
+            const it = itemById[g.id];
+            return (
+              <ItemCard key={g.id} open={open.isOpen(g.id)} onToggle={() => open.toggle(g.id)}
+                title={g.name || 'Untitled goal'}
+                summary={it && <><span className="t">{cmp(N(g.cost))}</span> today → <span className="f">{cmp(it.fv)}</span> in {it.year} · {g.priority}</>}
+                onRemove={() => update(p => {
+                  p.goals = p.goals.filter(x => x.id !== g.id);
+                  for (const list of [p.assets, p.investments, p.oneTime]) list.forEach(a => { if (a.earmark === g.id) a.earmark = 'unassigned'; });
+                  p.insurance.forEach(x => { if (x.earmark === g.id) x.earmark = 'unassigned'; });
+                })}>
+                <div className="fields">
+                  <Field label="Goal name"><TextInput value={g.name} placeholder="Goal name" onChange={v => update(p => { p.goals[i].name = v; })} /></Field>
+                  <Field label="Cost in today’s prices"><MoneyInput value={g.cost} onChange={v => update(p => { p.goals[i].cost = v; })} /></Field>
+                  <Field label="Target year"><NumInput value={g.year} onChange={v => update(p => { p.goals[i].year = v; })} /></Field>
+                </div>
+                <Field label="Priority" hint="Sets the order goals are funded in">
+                  <Segmented label="Priority" value={g.priority} options={PRIS.map(v => ({ v, l: v }))} onChange={v => update(p => { p.goals[i].priority = v; })} />
+                </Field>
+                <details className="more">
+                  <summary>More: type, price rise ({N(g.inf)}% a year)</summary>
+                  <div className="fields">
+                    <Field label="Type"><Select<GoalType> value={g.type} options={GOAL_TYPES} onChange={v => update(p => { p.goals[i].type = v; p.goals[i].inf = defaultInflation(v, p.a); })} /></Field>
+                    <Field label="Price rise"><NumInput decimals suffix="% a year" value={g.inf} onChange={v => update(p => { p.goals[i].inf = v; })} /></Field>
+                  </div>
+                </details>
+                {it && <FutureStrip today={N(g.cost)} todayLabel="Cost today" future={it.fv} futureLabel={'Cost in ' + it.year} />}
+              </ItemCard>
+            );
+          })}
+        </div>
         <div className="presets">
           {presets.map(([label, type, cost, year, priority]) => (
-            <button key={label} onClick={() => update(p => { p.goals.push({ id: newId('g'), name: label, type, cost, year, inf: defaultInflation(type, p.a), priority }); })}>+ {label}</button>
+            <button key={label} onClick={() => { const id = newId('g'); update(p => { p.goals.push({ id, name: label, type, cost, year, inf: defaultInflation(type, p.a), priority }); }); open.openNew(id); }}>+ {label}</button>
           ))}
         </div>
         <p className="hint">Preset costs and dates are placeholders. Change them to your own.</p>
@@ -178,19 +193,28 @@ function BalanceCard({ c, withYearly }: { c: CalcResult; withYearly?: boolean })
 export function Monthly({ plan, update, c }: StepProps) {
   const h = plan.household;
   const goals = goalOpts(plan).concat([{ v: 'unassigned', l: 'Not linked to a goal' }]);
+  const inv = useOpenSet(), ins = useOpenSet();
+  const addPolicy = (type: PolicyType) => { const id = newId('p'); update(p => { p.insurance.push({ id, type, label: '', cover: 0, premium: 0, freq: 'Yearly' }); }); ins.openNew(id); };
   return (
     <>
       <section className="card">
         <div className="card-title"><h3>Income</h3><span className="hint">Total <span className="t">{inr(c.incomeM)}</span></span></div>
         <RowList rows={plan.income} set={fn => update(p => { p.income = fn(p.income); })} addLabel="+ Add income" amtLabel="Monthly amount" placeholder="e.g. Take-home salary" />
-        <Field label="How does income arrive?" hint={h.pattern === 'Variable' ? 'Business, freelance or commission income' : 'Salary or regular monthly income'}>
-          <Segmented label="Income pattern" value={h.pattern} options={[{ v: 'Steady', l: 'Steady' }, { v: 'Variable', l: 'Variable' }]} onChange={v => update(p => { p.household.pattern = v; })} />
-        </Field>
+        <details className="more">
+          <summary>More: income pattern, expected growth</summary>
+          <Field label="How does income arrive?" hint={h.pattern === 'Variable' ? 'Business, freelance or commission income' : 'Salary or regular monthly income'}>
+            <Segmented label="Income pattern" value={h.pattern} options={[{ v: 'Steady', l: 'Steady' }, { v: 'Variable', l: 'Variable' }]} onChange={v => update(p => { p.household.pattern = v; })} />
+          </Field>
+          <Field label="Expected yearly increase in income" hint="Optional. Used when exploring options.">
+            <NumInput decimals suffix="% a year" value={plan.incomeGrowth} placeholder="e.g. 6" onChange={v => update(p => { p.incomeGrowth = v; })} />
+          </Field>
+        </details>
       </section>
 
       <section className="card">
         <div className="card-title"><h3>Regular spends</h3><span className="hint">Total <span className="t">{inr(c.ess)}</span></span></div>
-        <RowList rows={plan.essentials} set={fn => update(p => { p.essentials = fn(p.essentials); })} addLabel="+ Add a spend" amtLabel="Monthly amount" placeholder="e.g. Groceries" />
+        <p className="hint">Tap <b>Need</b> to mark a spend as a <b>Want</b>, such as eating out. The emergency fund covers needs only.</p>
+        <RowList needWant rows={plan.essentials} set={fn => update(p => { p.essentials = fn(p.essentials); })} addLabel="+ Add a spend" amtLabel="Monthly amount" placeholder="e.g. Groceries" />
       </section>
 
       <section className="card">
@@ -206,52 +230,80 @@ export function Monthly({ plan, update, c }: StepProps) {
             </div>
           ))}
         </div>
-        <button className="btn-add" onClick={() => update(p => { p.loans.push({ id: newId('l'), label: '', emi: 0, out: 0, rate: '' }); })}>+ Add a loan EMI</button>
+        <button className="btn-add" onClick={() => update(p => { p.loans.push({ id: newId('l'), label: '', emi: 0, out: 0, rate: '', endYear: '' }); })}>+ Add a loan EMI</button>
+        {plan.loans.length > 0 && <p className="hint">When each loan ends goes in step 4.</p>}
       </section>
 
       <section className="card">
-        <div className="card-title"><h3>Monthly investments and savings</h3><span className="hint">Total <span className="t">{inr(c.invest + c.investPayroll)}</span></span></div>
-        <p className="hint">SIPs, stocks, crypto, EPF, NPS, PPF, RDs: anything you put away every month. Link each one to the goal it’s for.</p>
+        <div className="card-title"><h3>Monthly investments</h3><span className="hint">Total <span className="t">{inr(c.invest + c.investPayroll)}</span></span></div>
+        <p className="hint">SIPs, stocks, crypto, EPF, NPS, PPF, RDs: anything you put away every month, and the goal it’s for.</p>
         <div className="list">
           {plan.investments.map((v, i) => (
-            <div className="item" key={v.id}>
-              <div className="item-head"><b>{v.label || TYPE_LABEL[v.type] || v.type}</b><Remove onClick={() => update(p => { p.investments = p.investments.filter(x => x.id !== v.id); })} /></div>
+            <ItemCard key={v.id} open={inv.isOpen(v.id)} onToggle={() => inv.toggle(v.id)}
+              title={v.label || TYPE_LABEL[v.type] || v.type}
+              summary={<><span className="t">{inr(N(v.amt))}</span>/mo · {linkedName(plan, v.earmark)}{v.type === 'Crypto' ? ' · speculative' : ''}</>}
+              onRemove={() => update(p => { p.investments = p.investments.filter(x => x.id !== v.id); })}>
               <div className="fields">
                 <Field label="Type"><Select<AssetType> value={v.type} options={typeOpts(INVEST_TYPES)} onChange={t => update(p => { p.investments[i].type = t; p.investments[i].payroll = t === 'EPF'; })} /></Field>
-                <Field label="Description"><TextInput value={v.label} placeholder="e.g. Index fund SIP" onChange={t => update(p => { p.investments[i].label = t; })} /></Field>
                 <Field label="Monthly amount"><MoneyInput value={v.amt} onChange={t => update(p => { p.investments[i].amt = t; })} /></Field>
                 <Field label="For which goal?"><Select value={v.earmark} options={goals} className={v.earmark === 'unassigned' ? 'unassigned' : ''} onChange={t => update(p => { p.investments[i].earmark = t; })} /></Field>
+                <Field label="Name" hint="Optional"><TextInput value={v.label} placeholder="e.g. Index fund SIP" onChange={t => update(p => { p.investments[i].label = t; })} /></Field>
               </div>
-              <label className="check"><input type="checkbox" checked={v.payroll} onChange={e => update(p => { p.investments[i].payroll = e.target.checked; })} />Deducted from salary before take-home</label>
-            </div>
+              {(v.type === 'EPF' || v.type === 'NPS') && (
+                <label className="check"><input type="checkbox" checked={v.payroll} onChange={e => update(p => { p.investments[i].payroll = e.target.checked; })} />Deducted from salary before take-home</label>
+              )}
+              {v.type === 'Crypto' && <p className="hint">Crypto is shown as speculative. Its growth rate is an assumption you can change in step 5.</p>}
+            </ItemCard>
           ))}
         </div>
-        <button className="btn-add" onClick={() => update(p => { p.investments.push({ id: newId('v'), type: 'Mutual funds', label: '', amt: 0, earmark: 'unassigned', payroll: false }); })}>+ Add a monthly investment</button>
+        <button className="btn-add" onClick={() => { const id = newId('v'); update(p => { p.investments.push({ id, type: 'Mutual funds', label: '', amt: 0, earmark: 'unassigned', payroll: false }); }); inv.openNew(id); }}>+ Add a monthly investment</button>
       </section>
 
       <section className="card">
         <div className="card-title"><h3>Insurance</h3><span className="hint">Premiums <span className="t">{inr(c.premiums)}</span>/mo</span></div>
-        <p className="hint">Health and life policies. Yearly premiums are spread across 12 months.</p>
         <div className="list">
-          {plan.insurance.map((x, i) => (
-            <div className="item" key={x.id}>
-              <div className="item-head"><b>{x.label || x.type}</b><Remove onClick={() => update(p => { p.insurance = p.insurance.filter(y => y.id !== x.id); })} /></div>
-              <div className="fields">
-                <Field label="Type"><Select<PolicyType> value={x.type} options={POLICY_TYPES} onChange={t => update(p => { p.insurance[i].type = t; })} /></Field>
-                <Field label="Who it covers" hint="Optional"><TextInput value={x.label} placeholder="e.g. Family floater" onChange={t => update(p => { p.insurance[i].label = t; })} /></Field>
-                <Field label="Cover amount"><MoneyInput value={x.cover} onChange={t => update(p => { p.insurance[i].cover = t; })} /></Field>
-                <Field label="Premium"><MoneyInput value={x.premium} showWords={false} onChange={t => update(p => { p.insurance[i].premium = t; })} /></Field>
-              </div>
-              <Field label="Premium is paid">
-                <Segmented<Freq> label="Premium frequency" value={x.freq} options={FREQS.map(v => ({ v, l: v }))} onChange={t => update(p => { p.insurance[i].freq = t; })} />
-              </Field>
-              {x.freq === 'Yearly' && N(x.premium) > 0 && <p className="hint">{inr(premiumMonthly(x))} a month</p>}
-            </div>
-          ))}
+          {plan.insurance.map((x, i) => {
+            const life = x.type !== 'Health';
+            return (
+              <ItemCard key={x.id} open={ins.isOpen(x.id)} onToggle={() => ins.toggle(x.id)}
+                title={x.label || x.type}
+                summary={<>{x.type} · cover <span className="t">{cmp(N(x.cover))}</span>{x.employer ? ' · employer' : ''}{N(x.premium) ? <> · {inr(N(x.premium))}/{x.freq === 'Yearly' ? 'yr' : 'mo'}</> : ''}</>}
+                onRemove={() => update(p => { p.insurance = p.insurance.filter(y => y.id !== x.id); })}>
+                <div className="fields">
+                  <Field label="Type"><Select<PolicyType> value={x.type} options={POLICY_TYPES} onChange={t => update(p => { p.insurance[i].type = t; })} /></Field>
+                  <Field label="Cover amount"><MoneyInput value={x.cover} onChange={t => update(p => { p.insurance[i].cover = t; })} /></Field>
+                  <Field label={'Premium, ' + x.freq.toLowerCase()}><MoneyInput value={x.premium} showWords={false} onChange={t => update(p => { p.insurance[i].premium = t; })} /></Field>
+                  {life && h.hasPartner && (
+                    <Field label="Whose life?">
+                      <Segmented label="Whose life" value={x.person || 'you'} options={[{ v: 'you', l: h.you.name || 'You' }, { v: 'partner', l: h.partner.name || 'Partner' }]} onChange={t => update(p => { p.insurance[i].person = t as 'you' | 'partner'; })} />
+                    </Field>
+                  )}
+                </div>
+                <Field label="Premium is paid">
+                  <Segmented<Freq> label="Premium frequency" value={x.freq} options={FREQS.map(v => ({ v, l: v }))} onChange={t => update(p => { p.insurance[i].freq = t; })} />
+                </Field>
+                {x.freq === 'Yearly' && N(x.premium) > 0 && <p className="hint">{inr(premiumMonthly(x))} a month, counted in your balance.</p>}
+                {x.type === 'Health' && (
+                  <label className="check"><input type="checkbox" checked={!!x.employer} onChange={e => update(p => { p.insurance[i].employer = e.target.checked; })} />Provided by an employer</label>
+                )}
+                {x.type === 'Life (savings plan)' && (
+                  <details className="more" open={N(x.maturity) > 0}>
+                    <summary>More: amount paid out at maturity</summary>
+                    <div className="fields">
+                      <Field label="Maturity amount"><MoneyInput value={x.maturity ?? 0} onChange={t => update(p => { p.insurance[i].maturity = t; })} /></Field>
+                      <Field label="Maturity year"><NumInput value={x.maturityYear ?? ''} placeholder={String(c.year + 10)} onChange={t => update(p => { p.insurance[i].maturityYear = t; })} /></Field>
+                      <Field label="Use it for"><Select value={x.earmark || 'unassigned'} options={goals} onChange={t => update(p => { p.insurance[i].earmark = t; })} /></Field>
+                    </div>
+                  </details>
+                )}
+                <Field label="Name" hint="Optional"><TextInput value={x.label} placeholder={x.type === 'Health' ? 'e.g. Family floater' : 'e.g. Term plan'} onChange={t => update(p => { p.insurance[i].label = t; })} /></Field>
+              </ItemCard>
+            );
+          })}
         </div>
         <div className="row">
-          <button className="btn-add" style={{ flex: 1 }} onClick={() => update(p => { p.insurance.push({ id: newId('p'), type: 'Health', label: '', cover: 0, premium: 0, freq: 'Yearly' }); })}>+ Health insurance</button>
-          <button className="btn-add" style={{ flex: 1 }} onClick={() => update(p => { p.insurance.push({ id: newId('p'), type: 'Term life', label: '', cover: 0, premium: 0, freq: 'Yearly' }); })}>+ Life insurance</button>
+          <button className="btn-add" style={{ flex: 1 }} onClick={() => addPolicy('Health')}>+ Health insurance</button>
+          <button className="btn-add" style={{ flex: 1 }} onClick={() => addPolicy('Term life')}>+ Life insurance</button>
         </div>
       </section>
 
@@ -264,12 +316,14 @@ export function Monthly({ plan, update, c }: StepProps) {
 
 export function Yearly({ plan, update, c }: StepProps) {
   const goals = goalOpts(plan).concat([{ v: 'unassigned', l: 'Not linked to a goal' }]);
+  const open = useOpenSet();
   const monthlyShare = (r: Row) => N(r.amt) > 0 && <span className="words">{inr(N(r.amt) / 12)} a month</span>;
+  const addOne = (kind: 'income' | 'spend') => { const id = newId('o'); update(p => { p.oneTime.push({ id, kind, label: '', amt: 0, year: c.year + 1, earmark: kind === 'income' ? 'unassigned' : '' }); }); open.openNew(id); };
   return (
     <>
       <section className="card">
         <div className="card-title"><h3>Yearly income</h3><span className="hint">Total <span className="t">{inr(c.incomeY)}</span>/yr</span></div>
-        <p className="hint">Bonuses, incentives, yearly rent or interest. Enter the amount you receive in a year.</p>
+        <p className="hint">Bonuses, incentives, yearly rent or interest.</p>
         <RowList rows={plan.annualIncome} set={fn => update(p => { p.annualIncome = fn(p.annualIncome); })} addLabel="+ Add yearly income" amtLabel="Yearly amount" placeholder="e.g. Annual bonus" note={monthlyShare} />
       </section>
 
@@ -281,29 +335,33 @@ export function Yearly({ plan, update, c }: StepProps) {
 
       <section className="card">
         <h3>One-time income and spends</h3>
-        <p className="hint">Amounts that happen once in a known year: a maturity, inheritance or property sale coming in, or a renovation going out. One-time spends are funded like goals.</p>
+        <p className="hint">Things that happen once in a known year: a maturity, inheritance or sale coming in, or a renovation going out.</p>
         <div className="list">
-          {plan.oneTime.map((o, i) => (
-            <div className="item" key={o.id}>
-              <div className="item-head">
+          {plan.oneTime.map((o, i) => {
+            const it = o.kind === 'spend' ? c.items.find(x => x.id === o.id) : undefined;
+            return (
+              <ItemCard key={o.id} open={open.isOpen(o.id)} onToggle={() => open.toggle(o.id)}
+                title={o.label || (o.kind === 'income' ? 'One-time income' : 'One-time spend')}
+                summary={<>{o.kind === 'income' ? '+' : '−'} <span className="t">{cmp(N(o.amt))}</span> in {N(o.year) || c.year + 1}{o.kind === 'income' ? ' · ' + linkedName(plan, o.earmark) : it ? <> · <span className="f">{cmp(it.fv)}</span> then</> : ''}</>}
+                onRemove={() => update(p => { p.oneTime = p.oneTime.filter(x => x.id !== o.id); })}>
                 <Segmented label="Income or spend" value={o.kind} options={[{ v: 'income', l: 'Income' }, { v: 'spend', l: 'Spend' }]}
                   onChange={k => update(p => { p.oneTime[i].kind = k; p.oneTime[i].earmark = k === 'income' ? 'unassigned' : ''; })} />
-                <Remove onClick={() => update(p => { p.oneTime = p.oneTime.filter(x => x.id !== o.id); })} />
-              </div>
-              <div className="fields">
-                <Field label="Description"><TextInput value={o.label} placeholder={o.kind === 'income' ? 'e.g. PPF maturity' : 'e.g. Home renovation'} onChange={t => update(p => { p.oneTime[i].label = t; })} /></Field>
-                <Field label={o.kind === 'income' ? 'Amount' : 'Cost in today’s prices'}><MoneyInput value={o.amt} onChange={t => update(p => { p.oneTime[i].amt = t; })} /></Field>
-                <Field label="Year"><NumInput value={o.year} placeholder={String(c.year + 1)} onChange={t => update(p => { p.oneTime[i].year = t; })} /></Field>
-                {o.kind === 'income' && <Field label="Use it for"><Select value={o.earmark} options={goals} className={o.earmark === 'unassigned' ? 'unassigned' : ''} onChange={t => update(p => { p.oneTime[i].earmark = t; })} /></Field>}
-              </div>
-              {o.kind === 'spend' && (() => {
-                const it = c.items.find(x => x.id === o.id);
-                return it ? <FutureStrip today={N(o.amt)} todayLabel="Cost today" future={it.fv} futureLabel={'Cost in ' + it.year} /> : null;
-              })()}
-            </div>
-          ))}
+                <div className="fields">
+                  <Field label="Description"><TextInput value={o.label} placeholder={o.kind === 'income' ? 'e.g. PPF maturity' : 'e.g. Home renovation'} onChange={t => update(p => { p.oneTime[i].label = t; })} /></Field>
+                  <Field label={o.kind === 'income' ? 'Amount' : 'Cost in today’s prices'}><MoneyInput value={o.amt} onChange={t => update(p => { p.oneTime[i].amt = t; })} /></Field>
+                  <Field label="Year"><NumInput value={o.year} placeholder={String(c.year + 1)} onChange={t => update(p => { p.oneTime[i].year = t; })} /></Field>
+                  {o.kind === 'income' && <Field label="Use it for"><Select value={o.earmark} options={goals} className={o.earmark === 'unassigned' ? 'unassigned' : ''} onChange={t => update(p => { p.oneTime[i].earmark = t; })} /></Field>}
+                </div>
+                {it && <FutureStrip today={N(o.amt)} todayLabel="Cost today" future={it.fv} futureLabel={'Cost in ' + it.year} />}
+                {o.kind === 'spend' && <p className="hint">Funded like an essential goal.</p>}
+              </ItemCard>
+            );
+          })}
         </div>
-        <button className="btn-add" onClick={() => update(p => { p.oneTime.push({ id: newId('o'), kind: 'income', label: '', amt: 0, year: c.year + 1, earmark: 'unassigned' }); })}>+ Add a one-time item</button>
+        <div className="row">
+          <button className="btn-add" style={{ flex: 1 }} onClick={() => addOne('income')}>+ One-time income</button>
+          <button className="btn-add" style={{ flex: 1 }} onClick={() => addOne('spend')}>+ One-time spend</button>
+        </div>
       </section>
 
       <BalanceCard c={c} withYearly />
@@ -320,6 +378,8 @@ function assetNote(a: Asset, it: Item | undefined): string {
     return 'Access is set to “' + a.access + '”, and this is linked to the emergency fund.';
   if (it && a.access === 'Lock-in period' && it.n < 3)
     return 'Access is set to “Lock-in period”, and ' + it.name + ' is due in ' + it.year + '.';
+  if (it && it.kind !== 'ret' && it.n <= SHORT_YEARS && MARKET[a.type])
+    return 'This is market-linked, and ' + it.name + ' is due in ' + it.year + '. Market-linked values can fall in the short term.';
   return '';
 }
 
@@ -327,6 +387,7 @@ export function HaveOwe({ plan, update, c }: StepProps) {
   const itemById = Object.fromEntries(c.items.map(i => [i.id, i]));
   const earmarks = [{ v: 'emergency', l: 'Emergency fund' }].concat(goalOpts(plan))
     .concat([{ v: 'unassigned', l: 'Not linked to a goal' }, { v: 'excluded', l: 'Not for goals' }]);
+  const assets = useOpenSet(), loans = useOpenSet();
   return (
     <>
       <div className="kpis" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
@@ -337,44 +398,57 @@ export function HaveOwe({ plan, update, c }: StepProps) {
 
       <section className="card">
         <h3>What I have</h3>
-        <p className="hint">Savings, investments and property, at today’s value. Link each one to the goal it’s for, so nothing is counted twice.</p>
+        <p className="hint">Savings, investments and property, at today’s value, and what each one is for.</p>
         <div className="list">
           {plan.assets.map((a, i) => {
             const note = assetNote(a, itemById[a.earmark]);
             return (
-              <div className="item" key={a.id}>
-                <div className="item-head"><b>{a.label || a.type}</b><Remove onClick={() => update(p => { p.assets = p.assets.filter(x => x.id !== a.id); })} /></div>
+              <ItemCard key={a.id} open={assets.isOpen(a.id)} onToggle={() => assets.toggle(a.id)}
+                title={a.label || TYPE_LABEL[a.type] || a.type}
+                summary={<><span className="t">{cmp(N(a.value))}</span> · {linkedName(plan, a.earmark)}{note ? ' · ⚠' : ''}</>}
+                onRemove={() => update(p => { p.assets = p.assets.filter(x => x.id !== a.id); })}>
                 <div className="fields">
                   <Field label="Type"><Select<AssetType> value={a.type} options={typeOpts(ASSET_TYPES)} onChange={v => update(p => { p.assets[i].type = v; })} /></Field>
-                  <Field label="Description"><TextInput value={a.label} placeholder="e.g. Joint savings" onChange={v => update(p => { p.assets[i].label = v; })} /></Field>
                   <Field label="Value today"><MoneyInput value={a.value} onChange={v => update(p => { p.assets[i].value = v; })} /></Field>
-                  <Field label="When can you access it?"><Select<Access> value={a.access} options={ACCESS} onChange={v => update(p => { p.assets[i].access = v; })} /></Field>
                   <Field label="Linked to"><Select value={a.earmark} options={earmarks} className={a.earmark === 'unassigned' ? 'unassigned' : ''} onChange={v => update(p => { p.assets[i].earmark = v; })} /></Field>
+                  <Field label="Name" hint="Optional"><TextInput value={a.label} placeholder="e.g. Joint savings" onChange={v => update(p => { p.assets[i].label = v; })} /></Field>
                 </div>
+                <details className="more">
+                  <summary>More: when you can access it ({a.access.toLowerCase()})</summary>
+                  <Field label="When can you access it?"><Select<Access> value={a.access} options={ACCESS} onChange={v => update(p => { p.assets[i].access = v; })} /></Field>
+                </details>
                 {note && <div className="warn">{note}</div>}
-              </div>
+              </ItemCard>
             );
           })}
         </div>
-        <button className="btn-add" onClick={() => update(p => { p.assets.push({ id: newId('a'), type: 'Mutual funds', label: '', value: 0, access: 'Within a week', earmark: 'unassigned' }); })}>+ Add a saving or investment</button>
+        <button className="btn-add" onClick={() => { const id = newId('a'); update(p => { p.assets.push({ id, type: 'Mutual funds', label: '', value: 0, access: 'Within a week', earmark: 'unassigned' }); }); assets.openNew(id); }}>+ Add a saving or investment</button>
       </section>
 
       <section className="card">
         <h3>What I owe</h3>
         <div className="list">
           {plan.loans.map((l, i) => (
-            <div className="item" key={l.id}>
-              <div className="item-head"><b>{l.label || 'Loan'}</b><Remove onClick={() => update(p => { p.loans = p.loans.filter(x => x.id !== l.id); })} /></div>
+            <ItemCard key={l.id} open={loans.isOpen(l.id)} onToggle={() => loans.toggle(l.id)}
+              title={l.label || 'Loan'}
+              summary={<><span className="t">{cmp(N(l.out))}</span> left · {inr(N(l.emi))}/mo{N(l.endYear) ? ' · ends ' + N(l.endYear) : ''}</>}
+              onRemove={() => update(p => { p.loans = p.loans.filter(x => x.id !== l.id); })}>
               <div className="fields">
-                <Field label="Name"><TextInput value={l.label} placeholder="e.g. Home loan" onChange={v => update(p => { p.loans[i].label = v; })} /></Field>
                 <Field label="Outstanding today"><MoneyInput value={l.out} onChange={v => update(p => { p.loans[i].out = v; })} /></Field>
-                <Field label="Interest rate"><NumInput decimals suffix="% a year" value={l.rate} onChange={v => update(p => { p.loans[i].rate = v; })} /></Field>
                 <Field label="Monthly EMI"><MoneyInput value={l.emi} onChange={v => update(p => { p.loans[i].emi = v; })} /></Field>
+                <Field label="Last EMI in year" hint="Optional. The EMI is then counted toward goals."><NumInput value={l.endYear ?? ''} placeholder={String(c.year + 5)} onChange={v => update(p => { p.loans[i].endYear = v; })} /></Field>
               </div>
-            </div>
+              <details className="more">
+                <summary>More: name, interest rate</summary>
+                <div className="fields">
+                  <Field label="Name"><TextInput value={l.label} placeholder="e.g. Home loan" onChange={v => update(p => { p.loans[i].label = v; })} /></Field>
+                  <Field label="Interest rate"><NumInput decimals suffix="% a year" value={l.rate} onChange={v => update(p => { p.loans[i].rate = v; })} /></Field>
+                </div>
+              </details>
+            </ItemCard>
           ))}
         </div>
-        <button className="btn-add" onClick={() => update(p => { p.loans.push({ id: newId('l'), label: '', emi: 0, out: 0, rate: '' }); })}>+ Add a loan</button>
+        <button className="btn-add" onClick={() => { const id = newId('l'); update(p => { p.loans.push({ id, label: '', emi: 0, out: 0, rate: '', endYear: '' }); }); loans.openNew(id); }}>+ Add a loan</button>
       </section>
       <p className="hint">Insurance cover is entered in step 2, with its premium.</p>
     </>

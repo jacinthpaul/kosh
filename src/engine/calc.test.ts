@@ -42,8 +42,10 @@ const goldenItems = {
   g3: { year: 2029, fv: 357304.80000000005, sip: 8539.753714385459, alloc: 0 },
 };
 
-describe('a migrated v0.1 plan matches the prototype exactly', () => {
-  const c = calc(toPlan(v1Sample)!, { year: 2026 });
+describe('a migrated v0.1 plan matches the prototype exactly (with one flat return rate)', () => {
+  const migrated = toPlan(v1Sample)!;
+  migrated.a.safe = migrated.a.ret; // the prototype used one rate for every horizon
+  const c = calc(migrated, { year: 2026 });
   for (const [k, v] of Object.entries(golden)) {
     it(k, () => expect(c[k as keyof typeof golden] as number).toBeCloseTo(v, 4));
   }
@@ -93,8 +95,73 @@ describe('monthly investments, insurance, yearly and one-time items', () => {
   });
   it('insurance totals are split into health and life', () => {
     const c = calc(sample(Y), { year: Y });
-    expect(c.healthCover).toBe(1000000);
+    expect(c.healthCover).toBe(1500000);
+    expect(c.employerHealth).toBe(500000);
     expect(c.lifeCover).toBe(10000000);
+  });
+});
+
+describe('reference-driven rules (NCFM review)', () => {
+  const Y = 2026;
+  const one = (years: number) => {
+    const p = blank(); p.household.you.age = 35;
+    p.goals = [{ id: 'g', name: 'G', type: 'Other', cost: 1000000, year: Y + years, inf: 6, priority: 'Essential' }];
+    return calc(p, { year: Y }).items.find(i => i.id === 'g')!;
+  };
+  it('#1 near goals use the safer rate, far goals the full rate, blended between', () => {
+    expect(one(2).rate).toBeCloseTo(0.065, 10);
+    expect(one(10).rate).toBeCloseTo(0.10, 10);
+    expect(one(5).rate).toBeCloseTo(0.0825, 10);
+  });
+  it('#1 a near goal needs more each month than it would at the full rate', () => {
+    const p = blank(); p.household.you.age = 35; p.a.safe = 10;
+    p.goals = [{ id: 'g', name: 'G', type: 'Other', cost: 1000000, year: Y + 2, inf: 6, priority: 'Essential' }];
+    const flat = calc(p, { year: Y }).items.find(i => i.id === 'g')!.sip;
+    expect(one(2).sip).toBeGreaterThan(flat);
+  });
+  it('#2 an EMI that ends frees money for goals that are still short', () => {
+    const p = sample(Y);
+    const without = calc({ ...p, loans: p.loans.map(l => ({ ...l, endYear: '' as const })) }, { year: Y });
+    const withEnd = calc(p, { year: Y });
+    expect(withEnd.gapM).toBeLessThan(without.gapM);
+    expect(withEnd.items.some(i => i.allocLater > 0)).toBe(true);
+  });
+  it('#3 surplus savings on one goal carry forward to a later goal', () => {
+    const p = sample(Y);
+    p.assets.push({ id: 'big', type: 'FD / RD', label: 'Big FD', value: 5000000, access: 'Immediate', earmark: 'g3' });
+    const c = calc(p, { year: Y });
+    const g3 = c.items.find(i => i.id === 'g3')!;
+    expect(g3.moved).toBeGreaterThan(0);
+    expect(c.items.some(i => i.carried > 0 && i.carriedFrom.includes(g3.name))).toBe(true);
+    // Nothing is created from thin air: carried value equals what left g3, grown to each target's date.
+    expect(g3.projected).toBeCloseTo(g3.grown - g3.moved, 4);
+  });
+  it('#2 extra monthly balance always reduces the gap, rupee for rupee, while one remains', () => {
+    const p = sample(Y);
+    const before = calc(p, { year: Y }).gapM;
+    p.income[0].amt += 1000;
+    const after = calc(p, { year: Y }).gapM;
+    expect(before).toBeGreaterThan(1000);
+    expect(before - after).toBeCloseTo(1000, 0);
+  });
+  it('#4 cutting wants reduces the gap', () => {
+    const p = sample(Y);
+    expect(calc(p, { year: Y, levers: { wantCut: 0.25 } }).gapM).toBeLessThan(calc(p, { year: Y }).gapM);
+  });
+  it('#4 the emergency target counts needs, not wants', () => {
+    const c = calc(sample(Y), { year: Y });
+    expect(c.monthCost).toBeCloseTo(c.needs + c.emi + c.premiums, 6);
+    expect(c.wants).toBe(10000);
+  });
+  it('#10 a savings-plan maturity counts toward its linked goal', () => {
+    const p = sample(Y);
+    const before = calc(p, { year: Y }).items.find(i => i.id === 'g1')!.grown;
+    p.insurance.push({ id: 'sp', type: 'Life (savings plan)', label: 'Endowment', cover: 500000, premium: 20000, freq: 'Yearly', maturity: 700000, maturityYear: Y + 8, earmark: 'g1' });
+    expect(calc(p, { year: Y }).items.find(i => i.id === 'g1')!.grown).toBeGreaterThan(before);
+  });
+  it('#12a the current mix adds up to everything you have', () => {
+    const c = calc(sample(Y), { year: Y });
+    expect([...c.mix.values()].reduce((a, b) => a + b, 0)).toBe(c.assetsTotal);
   });
 });
 

@@ -1,6 +1,6 @@
 import type { Access, AssetType, Freq, GoalType, Plan, PolicyType, Priority } from './types';
 
-export const CALC_VERSION = 'v0.2';
+export const CALC_VERSION = 'v0.3';
 export const SCHEMA_VERSION = 2 as const;
 
 /** Default yearly growth (%) by type, before tax. Users can change these. */
@@ -11,6 +11,15 @@ export const DEFAULT_RATES: Record<AssetType, number> = {
 /** Types whose growth follows market returns (affected by return stress). */
 export const MARKET: Partial<Record<AssetType, true>> = { 'NPS': true, 'Mutual funds': true, 'Shares': true, 'Crypto': true };
 export const ASSET_TYPES = Object.keys(DEFAULT_RATES) as AssetType[];
+/** Asset class of each type, for the current-mix view. Mutual funds and NPS are treated as equity. */
+export type AssetClass = 'Equity' | 'Debt' | 'Gold' | 'Real estate' | 'Speculative' | 'Other';
+export const ASSET_CLASS: Record<AssetType, AssetClass> = {
+  'Savings account': 'Debt', 'FD / RD': 'Debt', 'EPF': 'Debt', 'PPF': 'Debt', 'NPS': 'Equity',
+  'Mutual funds': 'Equity', 'Shares': 'Equity', 'Crypto': 'Speculative', 'Gold': 'Gold', 'Property': 'Real estate', 'Other': 'Other',
+};
+export const CLASS_COLOR: Record<AssetClass, string> = {
+  'Equity': '#2E5C3E', 'Debt': '#7FA68A', 'Gold': '#C98A1B', 'Real estate': '#8A6F4E', 'Speculative': '#B4462E', 'Other': '#B7AE98',
+};
 /** Types that make sense as a monthly investment. */
 export const INVEST_TYPES: AssetType[] = ['Mutual funds', 'Shares', 'Crypto', 'EPF', 'NPS', 'PPF', 'FD / RD', 'Gold', 'Other'];
 export const TYPE_LABEL: Partial<Record<AssetType, string>> = { 'Mutual funds': 'Mutual funds / SIP', 'Shares': 'Stocks / shares' };
@@ -43,15 +52,16 @@ export function sample(year: number): Plan {
       { id: 'i1', label: 'Arjun’s take-home salary', amt: 110000 },
       { id: 'i2', label: 'Meera’s take-home salary', amt: 65000 },
     ],
+    incomeGrowth: 6,
     essentials: [
       { id: 'e1', label: 'Rent and maintenance', amt: 32000 },
       { id: 'e2', label: 'Groceries and household', amt: 18000 },
       { id: 'e3', label: 'Utilities, phone, internet', amt: 6000 },
       { id: 'e4', label: 'Transport and fuel', amt: 7000 },
       { id: 'e5', label: 'Mother’s care and medicines', amt: 9000 },
-      { id: 'e6', label: 'Other regular spending', amt: 10000 },
+      { id: 'e6', label: 'Eating out and shopping', amt: 10000, want: true },
     ],
-    loans: [{ id: 'l1', label: 'Car loan', emi: 12000, out: 420000, rate: 9.2 }],
+    loans: [{ id: 'l1', label: 'Car loan', emi: 12000, out: 420000, rate: 9.2, endYear: year + 3 }],
     investments: [
       { id: 'v1', type: 'EPF', label: 'EPF (employee + employer)', amt: 18000, earmark: 'ret', payroll: true },
       { id: 'v2', type: 'NPS', label: 'Meera’s NPS', amt: 5000, earmark: 'ret', payroll: true },
@@ -61,7 +71,8 @@ export function sample(year: number): Plan {
     ],
     insurance: [
       { id: 'p1', type: 'Health', label: 'Family floater', cover: 1000000, premium: 28000, freq: 'Yearly' },
-      { id: 'p2', type: 'Term life', label: 'Arjun’s term plan', cover: 10000000, premium: 1500, freq: 'Monthly' },
+      { id: 'p3', type: 'Health', label: 'Arjun’s employer cover', cover: 500000, premium: 0, freq: 'Yearly', employer: true },
+      { id: 'p2', type: 'Term life', label: 'Arjun’s term plan', cover: 10000000, premium: 1500, freq: 'Monthly', person: 'you' },
     ],
     annualIncome: [{ id: 'y1', label: 'Annual bonus', amt: 150000 }],
     annual: [
@@ -83,7 +94,7 @@ export function sample(year: number): Plan {
       { id: 'a8', type: 'Gold', label: 'Gold jewellery', value: 350000, access: 'Not for sale', earmark: 'excluded' },
     ],
     emergency: { months: 6, monthly: 5000 },
-    a: { ret: 10, retPost: 7, inf: 6, eduInf: 8, healthInf: 9 },
+    a: { ret: 10, safe: 6.5, retPost: 7, inf: 6, eduInf: 8, healthInf: 9 },
     rates: { ...DEFAULT_RATES },
   };
 }
@@ -96,6 +107,7 @@ export function blank(): Plan {
     retirement: { age: 60, lifeExp: 85, expense: 0, pension: 0 },
     goals: [],
     income: ['Your take-home salary', 'Other income (rent, interest)'].map(label => ({ id: newId('i'), label, amt: 0 })),
+    incomeGrowth: '',
     essentials: ['Rent or home maintenance', 'Groceries and household', 'Utilities, phone, internet', 'Transport and fuel', 'Other regular spending']
       .map(label => ({ id: newId('e'), label, amt: 0 })),
     loans: [],
@@ -106,7 +118,7 @@ export function blank(): Plan {
     oneTime: [],
     assets: [],
     emergency: { months: 6, monthly: 0 },
-    a: { ret: 10, retPost: 7, inf: 6, eduInf: 8, healthInf: 9 },
+    a: { ret: 10, safe: 6.5, retPost: 7, inf: 6, eduInf: 8, healthInf: 9 },
     rates: { ...DEFAULT_RATES },
   };
 }

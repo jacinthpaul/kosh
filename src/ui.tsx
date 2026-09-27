@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { N, words } from './engine/format';
 import type { Num } from './engine/types';
 
@@ -108,3 +108,38 @@ export const CodeKey = () => (
 );
 
 export const PreTax =() => <span className="pretax" title="Tax is not yet included in any figure">Before tax</span>;
+
+/** Which collapsible items are open. New items are opened so they can be filled in straight away. */
+export function useOpenSet() {
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const toggle = useCallback((id: string) => setOpen(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
+  const openNew = useCallback((id: string) => setOpen(s => new Set(s).add(id)), []);
+  return { isOpen: (id: string) => open.has(id), toggle, openNew };
+}
+
+/** A list item that shows a one-line summary and expands to edit. */
+export function ItemCard({ title, summary, open, onToggle, onRemove, children }: {
+  title: ReactNode; summary?: ReactNode; open: boolean; onToggle: () => void; onRemove: () => void; children: ReactNode;
+}) {
+  return (
+    <div className={'item' + (open ? ' open' : '')}>
+      <div className="item-head">
+        <button type="button" className="item-toggle" aria-expanded={open} onClick={onToggle}>
+          <span className="item-title"><b>{title}</b>{summary && <span className="item-sum">{summary}</span>}</span>
+          <span className="chev" aria-hidden>{open ? 'Done' : 'Edit'}</span>
+        </button>
+        <button className="btn-remove" onClick={onRemove}>Remove</button>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+/** Small toggle between Need and Want on a spend. */
+export function NeedWant({ want, onChange }: { want: boolean; onChange: (want: boolean) => void }) {
+  return (
+    <button type="button" className={'nw' + (want ? ' want' : '')} aria-pressed={want} onClick={() => onChange(!want)} title="Tap to switch between need and want">
+      {want ? 'Want' : 'Need'}
+    </button>
+  );
+}

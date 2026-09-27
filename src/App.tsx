@@ -175,7 +175,7 @@ export default function App() {
               <p className="note">Approximate figures are fine. Skip anything and come back to it; the plan is marked provisional until the key numbers are in.</p>
             </section>
             <section className="card card-muted">
-              <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.2</span></div>
+              <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.3</span></div>
               <div className="soon">{COMING_SOON.map(s => <div key={s}>{s}</div>)}</div>
             </section>
           </div>
@@ -263,7 +263,7 @@ export default function App() {
                     </div>
                   </section>
                   <section className="card card-muted">
-                    <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.2</span></div>
+                    <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.3</span></div>
                     <div className="soon">{COMING_SOON.map(s => <div key={s}>{s}</div>)}</div>
                   </section>
                 </>
