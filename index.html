@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- Nothing leaves the browser: every network request is blocked except loading the app's own files. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <!-- Nothing leaves the browser: every network request is blocked except loading the app's own files.
+         'wasm-unsafe-eval' and connect-src data: only let the PDF layout engine load its built-in WebAssembly;
+         neither allows eval of scripts or any request to a server. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#F6F4EE" />
     <meta name="description" content="Kosh: a personal wealth calculator. No account, no bank connection. Everything stays in your browser." />

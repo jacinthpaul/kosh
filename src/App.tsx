@@ -7,11 +7,12 @@ import { Explore, type Tab } from './explore';
 import { HaveOwe, Monthly, Yearly, YouAndGoals } from './steps';
 import { clearLocal, decryptBackup, exportBackup, loadLocal, parseBackup, saveLocal, type ParsedFile } from './storage/storage';
 import { Field, Sheet, Toggle } from './ui';
+import { downloadReport } from './report/download';
 
 const STEPS: [string, string][] = [
   ['You and your goals', 'Family, retirement, goals'], ['Monthly money', 'Income, spends, investments, insurance'],
   ['Yearly and one-time', 'Bonuses, fees, one-off items'], ['What I have and owe', 'Savings, property, loans'],
-  ['Your plan', 'What’s needed and options'], ['Save and revisit', 'Editable backup file'],
+  ['Your plan', 'What’s needed and options'], ['Download and save', 'PDF report, backup file'],
 ];
 const HEAD: [string, string][] = [
   ['What are you planning for?', 'Start with your family and goals: when you’d like to retire, what you’ll need, and what else matters. Approximate figures are fine.'],
@@ -19,7 +20,7 @@ const HEAD: [string, string][] = [
   ['What happens once a year, or just once?', 'Yearly items are spread across 12 months so your balance is realistic. One-time items happen in a specific year.'],
   ['What do you have, and what do you owe?', 'Savings, investments and property at today’s value, and the loans against them.'],
   ['Your plan', 'How much more your goals need, what’s missing, and options to explore. All figures are estimates before tax.'],
-  ['Save and revisit', 'Download an editable backup file to pick up where you left off, on this or another device.'],
+  ['Download and save', 'Download a PDF report to read and share, and an editable backup file to pick up where you left off.'],
 ];
 const JOURNEY = [
   'Family, when you’d like to retire, what you’ll need, and goals like education or a home.',
@@ -27,11 +28,10 @@ const JOURNEY = [
   'Bonuses, school fees and other yearly items, plus one-off income or spends.',
   'Savings, investments, property and loans, and what each one is for.',
   'How much more is needed, what’s missing, and options to close the gap.',
-  'Save an editable backup to pick up later.',
+  'Download a PDF report that explains every number, and a backup to pick up later.',
 ];
-const NEXT = ['Continue to monthly money', 'Continue to yearly items', 'Continue to what I have', 'See my plan', 'Save and revisit', ''];
+const NEXT = ['Continue to monthly money', 'Continue to yearly items', 'Continue to what I have', 'See my plan', 'Download and save', ''];
 const COMING_SOON = [
-  'Downloadable A4 PDF report, with an option to hide names',
   'Stress test: lower returns, higher inflation, lower income, retiring earlier',
   'Interactive “What if…” sliders to combine several options',
   'Life timeline showing when goals arrive and family ages',
@@ -55,6 +55,8 @@ export default function App() {
   const [pending, setPending] = useState<Extract<ParsedFile, { kind: 'encrypted' }>['file'] | null>(null);
   const [pendingPw, setPendingPw] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pdfNames, setPdfNames] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -106,6 +108,12 @@ export default function App() {
     try { await exportBackup(plan, pw); say(pw ? 'Encrypted backup saved' : 'Backup saved without a password'); }
     catch { say('Could not create the backup in this browser'); }
     setBusy(false);
+  };
+  const doPdf = async () => {
+    setPdfBusy(true);
+    try { await downloadReport(plan, c, pdfNames); say('PDF report downloaded'); }
+    catch { say('Could not create the PDF in this browser'); }
+    setPdfBusy(false);
   };
   const toggleSave = (on: boolean) => {
     setKeepLocal(on);
@@ -175,7 +183,7 @@ export default function App() {
               <p className="note">Approximate figures are fine. Skip anything and come back to it; the plan is marked provisional until the key numbers are in.</p>
             </section>
             <section className="card card-muted">
-              <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.3</span></div>
+              <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.4</span></div>
               <div className="soon">{COMING_SOON.map(s => <div key={s}>{s}</div>)}</div>
             </section>
           </div>
@@ -245,6 +253,16 @@ export default function App() {
               {step === 6 && (
                 <>
                   <section className="card">
+                    <h3>PDF report</h3>
+                    <p className="desc">A 7-section A4 report of your plan, with every section and number explained in plain words. Created on this device and never uploaded.</p>
+                    <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+                      <div><b style={{ fontSize: 14 }}>Include names</b><p className="hint">Turn off to replace names with “You”, “Partner” and “Child” before sharing.</p></div>
+                      <Toggle on={pdfNames} onChange={setPdfNames} label="Include names in the PDF" />
+                    </div>
+                    {missing.length > 0 && <p className="warn">Some key numbers are missing ({missing.join(', ').toLowerCase()}), so the report will be provisional.</p>}
+                    <div className="row"><button className="btn btn-primary" disabled={pdfBusy} onClick={doPdf}>{pdfBusy ? 'Creating PDF…' : 'Download PDF report'}</button></div>
+                  </section>
+                  <section className="card">
                     <h3>Editable backup file</h3>
                     <p className="desc">A file you keep. Open it here later to continue, on this or another device. It is never uploaded.</p>
                     <Field label="Password" hint="Optional, but recommended. Without it, anyone with the file can read it.">
@@ -263,7 +281,7 @@ export default function App() {
                     </div>
                   </section>
                   <section className="card card-muted">
-                    <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.3</span></div>
+                    <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.4</span></div>
                     <div className="soon">{COMING_SOON.map(s => <div key={s}>{s}</div>)}</div>
                   </section>
                 </>

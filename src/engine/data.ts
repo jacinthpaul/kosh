@@ -1,6 +1,6 @@
 import type { Access, AssetType, Freq, GoalType, Plan, PolicyType, Priority } from './types';
 
-export const CALC_VERSION = 'v0.3';
+export const CALC_VERSION = 'v0.4';
 export const SCHEMA_VERSION = 2 as const;
 
 /** Default yearly growth (%) by type, before tax. Users can change these. */

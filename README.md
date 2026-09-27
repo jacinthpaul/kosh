@@ -13,8 +13,8 @@
 
 <p align="center">
   <a href="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml"><img src="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
-  <img src="https://img.shields.io/badge/version-v0.3-2E5C3E" alt="Version v0.3">
-  <img src="https://img.shields.io/badge/tests-42%20passing-2E5C3E" alt="Tests: 42 passing">
+  <img src="https://img.shields.io/badge/version-v0.4-2E5C3E" alt="Version v0.4">
+  <img src="https://img.shields.io/badge/tests-47%20passing-2E5C3E" alt="Tests: 47 passing">
   <img src="https://img.shields.io/badge/tracking-none-2E5C3E" alt="Tracking: none">
   <img src="https://img.shields.io/badge/data-stays%20in%20your%20browser-2E5C3E" alt="Data stays in your browser">
   <img src="https://img.shields.io/badge/mobile-first-C98A1B" alt="Mobile first">
@@ -49,7 +49,7 @@
 | **3 · Yearly and one-time** | Bonuses and yearly spends like school fees, plus one-off income (a maturity, a sale) or spends in a given year |
 | **4 · What I have and owe** | Savings, investments, property and loans at today’s value, each linked to what it’s for |
 | **5 · Your plan** | **How much more is needed** each month, **what’s missing** (shortfalls, emergency fund, insurance, unlinked money), **options to explore** with their effect on the gap, and **your current mix** of equity, debt, gold and property |
-| **6 · Save and revisit** | Download an editable backup file (optionally password-encrypted), or save on this device |
+| **6 · Download and save** | A **PDF report** (A4, 7 sections) that explains every number in plain words, with an option to hide names; plus an editable backup file (optionally password-encrypted), or save on this device |
 
 **Grounded in practice:** the model follows the NSE Academy (NCFM) Wealth Management module wherever it applies:
 - Goals up to 3 years away assume a safer return, and goals 7+ years away the full return.
@@ -67,7 +67,7 @@ Try it with the built-in **sample family** to see a complete plan in one click.
 
 - **No backend.** All calculations run in your browser.
 - **Nothing is collected or measured.** No analytics, no tracking, no error reporting. Fonts are self-hosted.
-- **Enforced, not just promised.** The page's Content Security Policy (`connect-src 'none'`) blocks all network requests after the page loads.
+- **Enforced, not just promised.** The page's Content Security Policy blocks every request to a server after the page loads. The only allowances are `connect-src data:` and `'wasm-unsafe-eval'`, which let the PDF engine load its built-in WebAssembly. The PDF is generated on your device, with fonts embedded.
 - **You decide what's kept.** Plans are saved only if you turn on *Save on this device*, or download a backup file (AES-GCM 256, PBKDF2-SHA256 with 200k iterations when you set a password).
 
 > [!NOTE]
@@ -78,7 +78,6 @@ Try it with the built-in **sample family** to see a complete plan in one click.
 
 ## Coming soon
 
-- [ ] Downloadable A4 PDF report, with an option to hide names
 - [ ] Stress test: lower returns, higher inflation, lower income, retiring earlier
 - [ ] Interactive “What if…” sliders to combine several options
 - [ ] Life timeline showing when goals arrive and family ages

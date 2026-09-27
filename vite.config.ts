@@ -5,4 +5,6 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: './',
   plugins: [react()],
+  // The PDF library is large but is only loaded when someone downloads a report.
+  build: { chunkSizeWarningLimit: 1300 },
 })
