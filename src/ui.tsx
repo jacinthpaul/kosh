@@ -99,4 +99,12 @@ export function PriorityTag({ p }: { p: string }) {
   return <span className="tag" style={{ background: bg, color: fg }}>{p}</span>;
 }
 
-export const PreTax = () => <span className="pretax" title="Tax is not yet included in any figure">Before tax</span>;
+/** Legend for the colour code used on every money figure. */
+export const CodeKey = () => (
+  <div className="codekey" aria-label="Colour key">
+    <span><i style={{ background: 'var(--today)' }} />Today’s money</span>
+    <span><i style={{ background: 'var(--future)' }} />Future money, after price rises or growth</span>
+  </div>
+);
+
+export const PreTax =() => <span className="pretax" title="Tax is not yet included in any figure">Before tax</span>;

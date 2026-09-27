@@ -13,8 +13,8 @@
 
 <p align="center">
   <a href="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml"><img src="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
-  <img src="https://img.shields.io/badge/version-v0.1-2E5C3E" alt="Version v0.1">
-  <img src="https://img.shields.io/badge/tests-25%20passing-2E5C3E" alt="Tests: 25 passing">
+  <img src="https://img.shields.io/badge/version-v0.2-2E5C3E" alt="Version v0.2">
+  <img src="https://img.shields.io/badge/tests-33%20passing-2E5C3E" alt="Tests: 33 passing">
   <img src="https://img.shields.io/badge/tracking-none-2E5C3E" alt="Tracking: none">
   <img src="https://img.shields.io/badge/data-stays%20in%20your%20browser-2E5C3E" alt="Data stays in your browser">
   <img src="https://img.shields.io/badge/mobile-first-C98A1B" alt="Mobile first">
@@ -30,7 +30,7 @@
 
 ---
 
-**Kosh** is a self-service wealth calculator for Indian families. Enter your household, monthly money, savings and goals. Kosh shows what each goal will cost, what your monthly surplus can cover, and how your retirement and emergency fund look. There's no account, no bank connection, and your numbers never leave your device.
+**Kosh** is a self-service wealth calculator for Indian families. Enter your household, monthly money, savings and goals. Kosh shows your monthly balance, what each goal will cost, how much more you need, what’s missing, and the options you have. There's no account, no bank connection, and your numbers never leave your device.
 
 <p align="center">
   <img src="docs/screen-welcome.png" alt="Welcome screen" width="260">
@@ -44,12 +44,14 @@
 
 | Step | What you do |
 |---|---|
-| **1 · My household** | Ages, partner, children, parents you support, and your retirement age |
-| **2 · My monthly money** | Take-home income, regular expenses, EMIs, once-a-year costs |
-| **3 · What I own and owe** | Savings, investments, property and loans. Say what each one is for so nothing is counted twice |
-| **4 · What I want to achieve** | Goals in today’s prices with future cost and the monthly amount each one needs |
-| **5 · Explore my plan** | Can the surplus cover your goals? Goals in funding order, retirement projection, emergency fund, editable assumptions |
+| **1 · You and your goals** | Family, when you’d like to retire and what you’ll need, plus goals like education, a home or travel |
+| **2 · Monthly money** | Income, regular spends, EMIs, monthly investments (SIPs, stocks, crypto, EPF, NPS, PPF…) linked to goals, and health and life insurance. Ends with your **monthly balance** |
+| **3 · Yearly and one-time** | Bonuses and yearly spends like school fees, plus one-off income (a maturity, a sale) or spends in a given year |
+| **4 · What I have and owe** | Savings, investments, property and loans at today’s value, each linked to what it’s for |
+| **5 · Your plan** | **How much more is needed** each month, **what’s missing** (shortfalls, emergency fund, insurance, unlinked money), and **options to explore** with their effect on the gap |
 | **6 · Save and revisit** | Download an editable backup file (optionally password-encrypted), or save on this device |
+
+**Colour code:** 🔵 blue is today’s money, 🟣 plum is future money after price rises or growth, used the same way on every screen.
 
 Try it with the built-in **sample family** to see a complete plan in one click.
 
@@ -70,9 +72,8 @@ Try it with the built-in **sample family** to see a complete plan in one click.
 
 - [ ] Downloadable A4 PDF report, with an option to hide names
 - [ ] Stress test: lower returns, higher inflation, lower income, retiring earlier
-- [ ] “What if…” changes: move a goal date, adjust a budget, raise investments each year
+- [ ] Interactive “What if…” sliders to combine several options
 - [ ] Life timeline showing when goals arrive and family ages
-- [ ] Where each month’s money goes, month by month and year by year
 - [ ] Tax-aware estimates
 - [ ] Separate retirement timeline for a partner
 - [ ] Install on your phone and use offline

@@ -1,10 +1,11 @@
-import { ACCESS, ASSET_TYPES, GOAL_TYPES, PRIS, SCHEMA_VERSION, blank, newId } from '../engine/data';
-import type { Access, AssetType, GoalType, Num, Plan, Priority } from '../engine/types';
+import { ACCESS, ASSET_TYPES, DEFAULT_RATES, FREQS, GOAL_TYPES, POLICY_TYPES, PRIS, SCHEMA_VERSION, blank, newId } from '../engine/data';
+import type { Access, AssetType, Freq, GoalType, Num, Plan, PolicyType, Priority, Row } from '../engine/types';
 
 /*
  * Rebuilds a Plan from untrusted JSON (backup file or localStorage).
  * Unknown fields are dropped and wrong types fall back to defaults, so a malformed
  * or hand-edited file can never put the app into a broken state.
+ * Also migrates version 1 plans (v0.1 backups) to the current shape.
  */
 
 type U = Record<string, unknown>;
@@ -15,13 +16,15 @@ const money = (v: unknown) => { const n = Number(v); return Number.isFinite(n) &
 const num = (v: unknown): Num => { if (v === '' || v == null) return ''; const n = Number(v); return Number.isFinite(n) ? n : ''; };
 const oneOf = <T extends string>(v: unknown, list: readonly T[], d: T): T => (list.includes(v as T) ? (v as T) : d);
 const id = (v: unknown, prefix: string) => (typeof v === 'string' && /^[\w-]{1,64}$/.test(v) ? v : newId(prefix));
+const rows = (v: unknown, prefix: string): Row[] => arr(v).slice(0, 100).map(x => { const o = obj(x); return { id: id(o.id, prefix), label: str(o.label), amt: money(o.amt) }; });
 
 export function toPlan(raw: unknown): Plan | null {
   const r = obj(raw);
   if (!('household' in r) && !('income' in r)) return null;
   const d = blank();
   const h = obj(r.household), you = obj(h.you), partner = obj(h.partner);
-  const inc = obj(r.income), ret = obj(r.retirement), em = obj(r.emergency), a = obj(r.a);
+  const ret = obj(r.retirement), em = obj(r.emergency), a = obj(r.a), rt = obj(r.rates);
+  const v1 = !Array.isArray(r.income); // v0.1 stored income as {you, partner, other}
 
   const goals = arr(r.goals).slice(0, 50).map(x => {
     const g = obj(x);
@@ -31,10 +34,28 @@ export function toPlan(raw: unknown): Plan | null {
     };
   });
   const goalIds = new Set(goals.map(g => g.id));
-  const validEarmark = (e: unknown) =>
-    typeof e === 'string' && (['emergency', 'ret', 'unassigned', 'excluded'].includes(e) || goalIds.has(e)) ? e : 'unassigned';
+  const validEarmark = (e: unknown, allowEmergency = true) =>
+    typeof e === 'string' && (['ret', 'unassigned', 'excluded'].includes(e) || (allowEmergency && e === 'emergency') || goalIds.has(e)) ? e : 'unassigned';
 
-  const rows = (v: unknown, prefix: string) => arr(v).slice(0, 100).map(x => { const o = obj(x); return { id: id(o.id, prefix), label: str(o.label), amt: money(o.amt) }; });
+  let income: Row[];
+  const investments = arr(r.investments).slice(0, 100).map(x => {
+    const v = obj(x);
+    return { id: id(v.id, 'v'), type: oneOf<AssetType>(v.type, ASSET_TYPES, 'Other'), label: str(v.label), amt: money(v.amt), earmark: validEarmark(v.earmark, false), payroll: v.payroll === true };
+  });
+  if (v1) {
+    const inc = obj(r.income);
+    income = [
+      { id: newId('i'), label: 'Your take-home', amt: money(inc.you) },
+      ...(h.hasPartner === true && money(inc.partner) ? [{ id: newId('i'), label: 'Partner’s take-home', amt: money(inc.partner) }] : []),
+      ...(money(inc.other) ? [{ id: newId('i'), label: 'Other income', amt: money(inc.other) }] : []),
+    ];
+    if (money(ret.ongoing)) investments.push({ id: newId('v'), type: 'EPF', label: 'EPF / NPS contributions', amt: money(ret.ongoing), earmark: 'ret', payroll: true });
+  } else income = rows(r.income, 'i');
+
+  const rates = { ...DEFAULT_RATES } as Plan['rates'];
+  for (const t of ASSET_TYPES) if (t in rt) rates[t] = num(rt[t]);
+  // v0.1 kept the EPF rate with the other assumptions
+  if (v1 && 'epf' in a) rates.EPF = num(a.epf);
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -46,10 +67,26 @@ export function toPlan(raw: unknown): Plan | null {
       parents: [0, 1, 2].includes(Number(h.parents)) ? Number(h.parents) : 0,
       pattern: h.pattern === 'Variable' ? 'Variable' : 'Steady',
     },
-    income: { you: money(inc.you), partner: money(inc.partner), other: money(inc.other) },
+    retirement: {
+      age: 'age' in ret ? num(ret.age) : d.retirement.age, lifeExp: 'lifeExp' in ret ? num(ret.lifeExp) : d.retirement.lifeExp,
+      expense: money(ret.expense), pension: money(ret.pension),
+    },
+    goals,
+    income,
     essentials: 'essentials' in r ? rows(r.essentials, 'e') : d.essentials,
-    annual: 'annual' in r ? rows(r.annual, 'n') : d.annual,
     loans: arr(r.loans).slice(0, 50).map(x => { const l = obj(x); return { id: id(l.id, 'l'), label: str(l.label), emi: money(l.emi), out: money(l.out), rate: num(l.rate) }; }),
+    investments,
+    insurance: arr(r.insurance).slice(0, 50).map(x => {
+      const p = obj(x);
+      return { id: id(p.id, 'p'), type: oneOf<PolicyType>(p.type, POLICY_TYPES, 'Health'), label: str(p.label), cover: money(p.cover), premium: money(p.premium), freq: oneOf<Freq>(p.freq, FREQS, 'Yearly') };
+    }),
+    annualIncome: rows(r.annualIncome, 'y'),
+    annual: 'annual' in r ? rows(r.annual, 'n') : d.annual,
+    oneTime: arr(r.oneTime).slice(0, 50).map(x => {
+      const o = obj(x);
+      const kind = o.kind === 'spend' ? 'spend' : 'income';
+      return { id: id(o.id, 'o'), kind, label: str(o.label), amt: money(o.amt), year: num(o.year), earmark: kind === 'income' ? validEarmark(o.earmark, false) : '' };
+    }),
     assets: arr(r.assets).slice(0, 100).map(x => {
       const s = obj(x);
       return {
@@ -57,16 +94,12 @@ export function toPlan(raw: unknown): Plan | null {
         access: oneOf<Access>(s.access, ACCESS, 'Within a week'), earmark: validEarmark(s.earmark),
       };
     }),
-    goals,
-    retirement: {
-      age: 'age' in ret ? num(ret.age) : d.retirement.age, lifeExp: 'lifeExp' in ret ? num(ret.lifeExp) : d.retirement.lifeExp,
-      expense: money(ret.expense), pension: money(ret.pension), ongoing: money(ret.ongoing),
-    },
     emergency: { months: [3, 6, 9, 12].includes(Number(em.months)) ? Number(em.months) : 6, monthly: money(em.monthly) },
     a: {
       ret: 'ret' in a ? num(a.ret) : d.a.ret, retPost: 'retPost' in a ? num(a.retPost) : d.a.retPost,
       inf: 'inf' in a ? num(a.inf) : d.a.inf, eduInf: 'eduInf' in a ? num(a.eduInf) : d.a.eduInf,
-      healthInf: 'healthInf' in a ? num(a.healthInf) : d.a.healthInf, epf: 'epf' in a ? num(a.epf) : d.a.epf,
+      healthInf: 'healthInf' in a ? num(a.healthInf) : d.a.healthInf,
     },
+    rates,
   };
 }

@@ -4,30 +4,37 @@ import { blank, sample } from './engine/data';
 import { cmp, inr } from './engine/format';
 import type { Plan } from './engine/types';
 import { Explore, type Tab } from './explore';
-import { Assets, Goals, Household, Money } from './steps';
+import { HaveOwe, Monthly, Yearly, YouAndGoals } from './steps';
 import { clearLocal, decryptBackup, exportBackup, loadLocal, parseBackup, saveLocal, type ParsedFile } from './storage/storage';
 import { Field, Sheet, Toggle } from './ui';
 
 const STEPS: [string, string][] = [
-  ['My household', 'Ages, dependants, retirement'], ['My monthly money', 'Income, expenses, EMIs'],
-  ['What I own and owe', 'Savings, investments, loans'], ['What I want to achieve', 'Goals, dates, priorities'],
-  ['Explore my plan', 'Gaps and assumptions'], ['Save and revisit', 'Editable backup file'],
+  ['You and your goals', 'Family, retirement, goals'], ['Monthly money', 'Income, spends, investments, insurance'],
+  ['Yearly and one-time', 'Bonuses, fees, one-off items'], ['What I have and owe', 'Savings, property, loans'],
+  ['Your plan', 'What’s needed and options'], ['Save and revisit', 'Editable backup file'],
 ];
 const HEAD: [string, string][] = [
-  ['Who is this plan for?', 'Ages and dependants set the timeline for every goal. Approximate figures are fine.'],
-  ['Where does the money go each month?', 'Use take-home pay after tax and salary deductions. Yearly costs are spread across 12 months.'],
-  ['What do you own and owe?', 'Say what each saving or investment is for. Each one counts toward one purpose only, so nothing is counted twice.'],
-  ['What do you want to achieve?', 'Enter goals in today’s prices. Kosh works out the future cost and the monthly amount each one needs.'],
-  ['Your plan', 'All figures are estimates under the assumptions you can see and change. They are before tax.'],
+  ['What are you planning for?', 'Start with your family and goals: when you’d like to retire, what you’ll need, and what else matters. Approximate figures are fine.'],
+  ['What comes in and goes out each month?', 'Use take-home pay. Add regular spends, EMIs, monthly investments like SIPs, EPF or crypto, and insurance premiums.'],
+  ['What happens once a year, or just once?', 'Yearly items are spread across 12 months so your balance is realistic. One-time items happen in a specific year.'],
+  ['What do you have, and what do you owe?', 'Savings, investments and property at today’s value, and the loans against them.'],
+  ['Your plan', 'How much more your goals need, what’s missing, and options to explore. All figures are estimates before tax.'],
   ['Save and revisit', 'Download an editable backup file to pick up where you left off, on this or another device.'],
 ];
-const NEXT = ['Continue to money', 'Continue to assets', 'Continue to goals', 'See my plan', 'Save and revisit', ''];
+const JOURNEY = [
+  'Family, when you’d like to retire, what you’ll need, and goals like education or a home.',
+  'Income, spends, EMIs, monthly investments and insurance, ending with your monthly balance.',
+  'Bonuses, school fees and other yearly items, plus one-off income or spends.',
+  'Savings, investments, property and loans, and what each one is for.',
+  'How much more is needed, what’s missing, and options to close the gap.',
+  'Save an editable backup to pick up later.',
+];
+const NEXT = ['Continue to monthly money', 'Continue to yearly items', 'Continue to what I have', 'See my plan', 'Save and revisit', ''];
 const COMING_SOON = [
   'Downloadable A4 PDF report, with an option to hide names',
   'Stress test: lower returns, higher inflation, lower income, retiring earlier',
-  '“What if…” changes: move a goal date, adjust a budget, raise investments each year',
+  'Interactive “What if…” sliders to combine several options',
   'Life timeline showing when goals arrive and family ages',
-  'Where each month’s money goes, month by month and year by year',
   'Tax-aware estimates',
   'Separate retirement timeline for a partner',
   'Install on your phone and use offline',
@@ -40,7 +47,7 @@ export default function App() {
   const [screen, setScreen] = useState<'welcome' | 'app'>('welcome');
   const [step, setStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>('summary');
   const [keepLocal, setKeepLocal] = useState(false);
   const [sheet, setSheet] = useState<null | 'privacy' | 'steps' | 'snapshot'>(null);
   const [toast, setToast] = useState('');
@@ -70,7 +77,7 @@ export default function App() {
 
   const top = () => { try { window.scrollTo(0, 0); } catch { /* ignore */ } };
   const go = (n: number) => { setStep(n); setMaxStep(m => Math.max(m, n)); setSheet(null); top(); };
-  const start = (p: Plan, atStep = p.sample ? 5 : 1) => { setPlan(p); setScreen('app'); setStep(atStep); setMaxStep(p.sample ? 6 : atStep); setTab('overview'); top(); };
+  const start = (p: Plan, atStep = p.sample ? 5 : 1) => { setPlan(p); setScreen('app'); setStep(atStep); setMaxStep(p.sample ? 6 : atStep); setTab('summary'); top(); };
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -148,7 +155,7 @@ export default function App() {
           <div className="stack-lg">
             <div className="eyebrow">Personal Wealth Calculator</div>
             <h1 className="h1">Your family’s wealth management, planned and visualised clearly.</h1>
-            <p className="lead">See where you stand, what your goals cost and what the monthly surplus can cover, without creating an account or connecting your bank.</p>
+            <p className="lead">Set your goals, add what comes in and goes out, and see how much more you need, what’s missing and what options you have. No account, no bank connection.</p>
             <div className="stack" style={{ gap: 10 }}>
               <button className="btn btn-primary btn-lg" onClick={() => start(sample(thisYear()))}>Try with a sample family</button>
               <button className="btn btn-lg" onClick={() => start(blank())}>Start with my numbers</button>
@@ -162,13 +169,13 @@ export default function App() {
           <div className="stack">
             <section className="card">
               <div className="card-title"><h3 style={{ fontFamily: 'var(--serif)', fontWeight: 400, fontSize: 21 }}>Your first plan</h3><span className="hint">About 10–15 minutes</span></div>
-              {['Ages, dependants, single or dual income, and when you’d like to retire.', 'Take-home income, regular expenses, EMIs and once-a-year costs.', 'Savings, investments, property and loans, and what each is for.', 'Education, a home, travel, parents’ care: dates, costs and priorities.', 'See gaps between what goals need and what’s available.', 'Save an editable backup to pick up later.'].map((d, i) => (
+              {JOURNEY.map((d, i) => (
                 <div className="journey" key={i}><div className="n">{i + 1}</div><div><b>{STEPS[i][0]}</b><span>{d}</span></div></div>
               ))}
               <p className="note">Approximate figures are fine. Skip anything and come back to it; the plan is marked provisional until the key numbers are in.</p>
             </section>
             <section className="card card-muted">
-              <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.1</span></div>
+              <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.2</span></div>
               <div className="soon">{COMING_SOON.map(s => <div key={s}>{s}</div>)}</div>
             </section>
           </div>
@@ -191,11 +198,12 @@ export default function App() {
   const completePct = Math.round(((6 - missing.length) / 6) * 100);
   const snapshot = (
     <div className="snapshot">
-      <div><small>Monthly surplus</small><div className="big" style={{ color: c.surplus < 0 ? '#F2A58E' : '#fff' }}>{inr(c.surplus)}</div></div>
-      <div className="kv"><span>Take-home income</span><span>{inr(c.income)}</span></div>
+      <div><small>Monthly balance</small><div className="big" style={{ color: c.balance < 0 ? '#F2A58E' : '#fff' }}>{inr(c.balance)}</div></div>
+      <div className="kv"><span>Monthly income</span><span>{inr(c.incomeM)}</span></div>
+      <div className="kv"><span>Monthly investments</span><span>{inr(c.invest + c.investPayroll)}</span></div>
       <div className="kv"><span>Net worth</span><span>{cmp(c.netWorth)}</span></div>
-      <div className="kv"><span>Savings for goals</span><span>{cmp(c.forGoals)}</span></div>
       <div className="kv"><span>Goals need each month</span><span>{inr(c.required)}</span></div>
+      <div className="kv"><span>Still to find each month</span><span>{c.gapM > 0 ? inr(c.gapM) : 'Nothing'}</span></div>
       {missing.length > 0 && <div className="miss"><b>Results are provisional</b><ul>{missing.map(m => <li key={m}>{m}</li>)}</ul></div>}
     </div>
   );
@@ -229,10 +237,10 @@ export default function App() {
           </div>
           <div className="cols">
             <div className="content">
-              {step === 1 && <Household {...props} />}
-              {step === 2 && <Money {...props} />}
-              {step === 3 && <Assets {...props} />}
-              {step === 4 && <Goals {...props} />}
+              {step === 1 && <YouAndGoals {...props} />}
+              {step === 2 && <Monthly {...props} />}
+              {step === 3 && <Yearly {...props} />}
+              {step === 4 && <HaveOwe {...props} />}
               {step === 5 && <Explore {...props} tab={tab} setTab={setTab} />}
               {step === 6 && (
                 <>
@@ -255,7 +263,7 @@ export default function App() {
                     </div>
                   </section>
                   <section className="card card-muted">
-                    <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.1</span></div>
+                    <div className="card-title"><h3>Coming soon</h3><span className="hint">Version 0.2</span></div>
                     <div className="soon">{COMING_SOON.map(s => <div key={s}>{s}</div>)}</div>
                   </section>
                 </>
@@ -266,7 +274,7 @@ export default function App() {
           <div className="bottombar">
             {step <= 4 && (
               <button className="snap-mini" onClick={() => setSheet('snapshot')} aria-label="Open live snapshot">
-                <span><small>Monthly surplus</small><b style={{ color: c.surplus < 0 ? '#F2A58E' : '#fff' }}>{inr(c.surplus)}</b></span>
+                <span><small>Monthly balance</small><b style={{ color: c.balance < 0 ? '#F2A58E' : '#fff' }}>{inr(c.balance)}</b></span>
                 <span style={{ fontSize: 13, color: '#B9C4BC', whiteSpace: 'nowrap' }}>{missing.length ? missing.length + ' to add · ' : ''}Snapshot ▴</span>
               </button>
             )}

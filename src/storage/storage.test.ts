@@ -30,18 +30,25 @@ describe('backup file', () => {
 });
 
 describe('toPlan sanitises untrusted input', () => {
+  it('migrates a v0.1 plan: income object to rows, EPF contributions to a payroll investment', () => {
+    const p = toPlan({ household: { hasPartner: true }, income: { you: 100000, partner: 50000, other: 0 }, retirement: { age: 60, ongoing: 12000 }, a: { epf: 8.1 } })!;
+    expect(p.income.map(r => r.amt)).toEqual([100000, 50000]);
+    expect(p.investments).toMatchObject([{ type: 'EPF', amt: 12000, earmark: 'ret', payroll: true }]);
+    expect(p.rates.EPF).toBe(8.1);
+  });
+
   it('drops bad values and dangling earmarks', () => {
     const p = toPlan({
       household: { you: { name: 42, age: 'abc' }, parents: 9 },
-      income: { you: -5, partner: '1000' },
+      income: [{ id: 'i1', label: 'Salary', amt: -5 }, { id: 'i2', label: 'Rent', amt: '1000' }],
       assets: [{ id: 'x', type: 'Bitcoin', value: 'NaN', earmark: 'g-missing' }],
       goals: [{ id: '<script>', priority: 'Urgent' }],
     })!;
     expect(p.household.you.name).toBe('');
     expect(p.household.you.age).toBe('');
     expect(p.household.parents).toBe(0);
-    expect(p.income.you).toBe(0);
-    expect(p.income.partner).toBe(1000);
+    expect(p.income[0].amt).toBe(0);
+    expect(p.income[1].amt).toBe(1000);
     expect(p.assets[0].type).toBe('Other');
     expect(p.assets[0].value).toBe(0);
     expect(p.assets[0].earmark).toBe('unassigned');
