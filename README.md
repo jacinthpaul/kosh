@@ -42,7 +42,7 @@
 
 ## Features
 
-| | |
+| Step | What you do |
 |---|---|
 | **1 · My household** | Ages, partner, children, parents you support, and your retirement age |
 | **2 · My monthly money** | Take-home income, regular expenses, EMIs, once-a-year costs |
