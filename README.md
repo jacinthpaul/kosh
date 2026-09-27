@@ -5,6 +5,7 @@
 <p align="center">
   <a href="https://jacinthpaul.github.io/kosh/"><b>Try it live</b></a> •
   <a href="#features">Features</a> •
+  <a href="docs/sample-report.pdf">Sample report</a> •
   <a href="#privacy">Privacy</a> •
   <a href="#coming-soon">Coming soon</a> •
   <a href="#develop">Develop</a> •
@@ -61,7 +62,7 @@ Its worked examples are reproduced exactly in the tests.
 
 **Colour code:** 🔵 blue is today’s money, 🟣 plum is future money after price rises or growth, used the same way on every screen.
 
-Try it with the built-in **sample family** to see a complete plan in one click.
+Try it with the built-in **sample family** to see a complete plan in one click, or see a **[sample PDF report](docs/sample-report.pdf)** for that family.
 
 ## Privacy
 
