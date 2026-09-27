@@ -1,34 +1,101 @@
-# Kosh: Personal Wealth Calculator
+<p align="center">
+  <a href="https://jacinthpaul.github.io/kosh/"><img src="docs/banner.png" alt="Kosh — Personal Wealth Calculator" width="880"></a>
+</p>
 
-**Try it live:** https://jacinthpaul.github.io/kosh/
+<p align="center">
+  <a href="https://jacinthpaul.github.io/kosh/"><b>Try it live</b></a> •
+  <a href="#features">Features</a> •
+  <a href="#privacy">Privacy</a> •
+  <a href="#coming-soon">Coming soon</a> •
+  <a href="#develop">Develop</a> •
+  <a href="LICENSE">License</a>
+</p>
 
-A self-service planner for Indian families. Enter household, monthly money, savings and goals, and see what the goals cost, what the monthly surplus covers, and how retirement and the emergency fund look.
+<p align="center">
+  <a href="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml"><img src="https://github.com/jacinthpaul/kosh/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
+  <img src="https://img.shields.io/badge/version-v0.1-2E5C3E" alt="Version v0.1">
+  <img src="https://img.shields.io/badge/tests-25%20passing-2E5C3E" alt="Tests: 25 passing">
+  <img src="https://img.shields.io/badge/tracking-none-2E5C3E" alt="Tracking: none">
+  <img src="https://img.shields.io/badge/data-stays%20in%20your%20browser-2E5C3E" alt="Data stays in your browser">
+  <img src="https://img.shields.io/badge/mobile-first-C98A1B" alt="Mobile first">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-C98A1B" alt="License: MIT"></a>
+</p>
 
-**Privacy:** there is no backend. Everything runs in the browser. A Content Security Policy (`connect-src 'none'`) blocks all network requests after the page loads. There is no analytics or tracking, and fonts are self-hosted. Plans are kept only if the user turns on "Save on this device" (localStorage) or downloads a backup file (optionally AES-GCM encrypted).
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-1E2A22?logo=react" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-strict-1E2A22?logo=typescript" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vite-8-1E2A22?logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/hosted%20on-GitHub%20Pages-1E2A22?logo=github" alt="GitHub Pages">
+</p>
 
-**Not advice:** Kosh is a calculator. It shows figures, not recommendations.
+---
 
-## Version 0.1 scope
-- Steps 1–4: household, monthly money, assets and loans (earmarked to goals), goals and retirement
-- Step 5: overview (affordability, goals in funding order), retirement projection, emergency fund, editable assumptions
-- Step 6: editable backup file (optional password), save on this device
+**Kosh** is a self-service wealth calculator for Indian families. Enter your household, monthly money, savings and goals. Kosh shows what each goal will cost, what your monthly surplus can cover, and how your retirement and emergency fund look. There's no account, no bank connection, and your numbers never leave your device.
 
-**Open assumption, tax:** all figures are before tax. This is stated in the app and will be decided later.
+<p align="center">
+  <img src="docs/screen-welcome.png" alt="Welcome screen" width="260">
+  &nbsp;
+  <img src="docs/screen-overview.png" alt="Can the surplus cover your goals?" width="260">
+  &nbsp;
+  <img src="docs/screen-retirement.png" alt="Retirement projection" width="260">
+</p>
 
-**Coming soon:** PDF report, stress test, "What if…" changes, life timeline, cash-flow breakdown, tax-aware estimates, partner retirement timeline, offline/installable app.
+## Features
+
+| | |
+|---|---|
+| **1 · My household** | Ages, partner, children, parents you support, and your retirement age |
+| **2 · My monthly money** | Take-home income, regular expenses, EMIs, once-a-year costs |
+| **3 · What I own and owe** | Savings, investments, property and loans. Say what each one is for so nothing is counted twice |
+| **4 · What I want to achieve** | Goals in today’s prices with future cost and the monthly amount each one needs |
+| **5 · Explore my plan** | Can the surplus cover your goals? Goals in funding order, retirement projection, emergency fund, editable assumptions |
+| **6 · Save and revisit** | Download an editable backup file (optionally password-encrypted), or save on this device |
+
+Try it with the built-in **sample family** to see a complete plan in one click.
+
+## Privacy
+
+- **No backend.** All calculations run in your browser.
+- **Nothing is collected or measured.** No analytics, no tracking, no error reporting. Fonts are self-hosted.
+- **Enforced, not just promised.** The page's Content Security Policy (`connect-src 'none'`) blocks all network requests after the page loads.
+- **You decide what's kept.** Plans are saved only if you turn on *Save on this device*, or download a backup file (AES-GCM 256, PBKDF2-SHA256 with 200k iterations when you set a password).
+
+> [!NOTE]
+> **Not advice.** Kosh is a calculator. It shows figures, not recommendations, and does not provide investment, tax or financial advice.
+
+> [!IMPORTANT]
+> **Open assumption: tax.** All figures are **before tax**. Tax on interest, capital gains and withdrawals is not modelled yet. This is shown clearly in the app and is still to be decided.
+
+## Coming soon
+
+- [ ] Downloadable A4 PDF report, with an option to hide names
+- [ ] Stress test: lower returns, higher inflation, lower income, retiring earlier
+- [ ] “What if…” changes: move a goal date, adjust a budget, raise investments each year
+- [ ] Life timeline showing when goals arrive and family ages
+- [ ] Where each month’s money goes, month by month and year by year
+- [ ] Tax-aware estimates
+- [ ] Separate retirement timeline for a partner
+- [ ] Install on your phone and use offline
 
 ## Develop
-```
+
+```bash
 npm install
 npm run dev      # local dev server
 npm test         # engine + backup tests
 npm run build    # static build in dist/
 ```
 
-## Layout
-- `src/engine/`: pure calculation model (`calc.ts`), ported from the design prototype and checked against its sample-family results
-- `src/storage/`: localStorage, backup export/import, input sanitising
-- `src/steps.tsx`, `src/explore.tsx`, `src/App.tsx`: UI (mobile-first)
+**Project layout**
 
-## Deploy
-Pushing to `main` builds and deploys to GitHub Pages via `.github/workflows/deploy.yml`. In the repo settings, set Pages → Source to **GitHub Actions**.
+| Path | What's there |
+|---|---|
+| `src/engine/` | Pure calculation model (`calc.ts`), ported from the design prototype and checked against its sample-family results |
+| `src/storage/` | Save on this device, backup export/import, checks and clean-up for loaded files |
+| `src/steps.tsx` · `src/explore.tsx` · `src/App.tsx` | Mobile-first UI |
+
+**Deploy:** every push to `main` runs the tests, builds, and deploys to GitHub Pages via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+
+## License
+
+[MIT](LICENSE)
